@@ -1,5 +1,7 @@
 (ns raytrace-clj.core
-  (:require [clojure.core.matrix :as mat])
+  (:require [clojure.core.matrix :as mat]
+            [mikera.image.core :refer [new-image set-pixel show save]]
+            [mikera.image.colours :refer [rgb rgb-from-components]])
   (:gen-class))
 
 
@@ -180,16 +182,17 @@
   (let [nx (if ix (Integer/parseUnsignedInt ix) 200)
         ny (if iy (Integer/parseUnsignedInt iy) 100)
         ns (if is (Integer/parseUnsignedInt is) 100)
-        world  (hitlist. [(sphere. (vec3 0 0 -1) 0.5 
-                                   (lambertian. (vec3 0.1 0.2 0.5)))
-                          (sphere. (vec3 0 -100.5 -1) 100
-                                   (lambertian. (vec3 0.8 0.8 0)))
-                          (sphere. (vec3 1 0 -1) 0.5 
-                                   (metal. (vec3 0.8 0.6 0.2) 0.3))
-                          (sphere. (vec3 -1 0 -1) 0.5 
-                                   (dielectric. 1.5))
-                          (sphere. (vec3 -1 0 -1) -0.45 
-                                   (dielectric. 1.5))])]
+        world (hitlist. [(sphere. (vec3 0 0 -1) 0.5 
+                                  (lambertian. (vec3 0.1 0.2 0.5)))
+                         (sphere. (vec3 0 -100.5 -1) 100
+                                  (lambertian. (vec3 0.8 0.8 0)))
+                         (sphere. (vec3 1 0 -1) 0.5 
+                                  (metal. (vec3 0.8 0.6 0.2) 0.3))
+                         (sphere. (vec3 -1 0 -1) 0.5 
+                                  (dielectric. 1.5))
+                         (sphere. (vec3 -1 0 -1) -0.45 
+                                  (dielectric. 1.5))])
+        image (new-image nx ny)]
     (println (str "P3\n" nx " " ny "\n255\n"))
     (doseq [j (range (dec ny) -1 -1)
             i (range nx)]
@@ -203,5 +206,7 @@
              (mat/sqrt)
              (mat/mul 255.99)
              (mat/emap int))]
+        (set-pixel image i (- ny j) (rgb-from-components ir ig ib))
+        (if (= i (dec nx)) (show image))
         (println ir ig ib))))
   (shutdown-agents))
