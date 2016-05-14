@@ -108,15 +108,40 @@
         {:scattered scattered
          :attenuation albedo}))))
 
+
+(defn schlick
+  "polynomial approximation of glass reflectivity"
+  [cosine ri]
+  (let [r0 (/ (- 1.0 ri) (+ 1.0 ri))
+        r0 (* r0 r0)]
+    (+ r0 (* (- 1.0 r0) (Math/pow (- 1.0 cosine) 5)))))
+
 (defrecord dielectric [ri]
   scatterable
   (scatter [this ray-in {:keys [t p normal material]}]
-    (let [reflected (reflect (:direction ray-in) normal)
-          dir (mat/dot (:direction ray-in) normal)
-          outward-normal (if (> dir 0) (- normal) normal)
-          ni-over-nt (if (> dir 0) ri (/ 1.0 ri))]
-      (if-let [refr (refract (:direction ray-in) outward-normal ni-over-nt)]
-        {:scattered (ray p refr)
+    (let [ray-direction (:direction ray-in)
+          ray-dot-n     (mat/dot ray-direction normal)
+          [outward-normal ni-over-nt cosine]
+          (if (> ray-dot-n 0)
+            [(mat/negate normal)        ; outward-normal
+             ri                         ; ni-over-nt
+             (* ri (/ ray-dot-n         ; cosine
+                      (mat/magnitude ray-direction)))]
+            [normal                     ; outward-normal
+             (/ 1.0 ri)                 ; ni-over-nt
+             (- (/ ray-dot-n            ; cosine
+                   (mat/magnitude ray-direction)))])]
+      (if-let [refr (refract ray-direction outward-normal ni-over-nt)]
+        ;; if refraction possible, then choose reflect or refract randomly
+        (if (< (rand) (schlick cosine ri))
+          ;; reflected
+          {:scattered (ray p (reflect ray-direction normal))
+           :attenuation (vec3 1 1 1)}
+          ;; refracted
+          {:scattered (ray p refr)
+           :attenuation (vec3 1 1 1)})
+        ;; otherwise reflected
+        {:scattered (ray p (reflect ray-direction normal))
          :attenuation (vec3 1 1 1)}))))
 
 (defn color
@@ -162,6 +187,8 @@
                           (sphere. (vec3 1 0 -1) 0.5 
                                    (metal. (vec3 0.8 0.6 0.2) 0.3))
                           (sphere. (vec3 -1 0 -1) 0.5 
+                                   (dielectric. 1.5))
+                          (sphere. (vec3 -1 0 -1) -0.45 
                                    (dielectric. 1.5))])]
     (println (str "P3\n" nx " " ny "\n255\n"))
     (doseq [j (range (dec ny) -1 -1)
