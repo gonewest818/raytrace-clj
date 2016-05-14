@@ -13,11 +13,28 @@
   [a b]
   {:origin a :direction b})
 
+(defn reflect
+  "reflect incoming vector v around normal n"
+  [v n]
+  (mat/sub v (mat/mul 2.0 (mat/dot v n) n)))
+
 (defn point-at-parameter
-  "evaluate ray parameterized at position t"
+  "evaluate parameterized ray at position t"
   [ray t]
   (mat/add (:origin ray)
            (mat/mul (:direction ray) t)))
+
+(defn rand-in-unit-sphere
+  "randomly choose point within the unit sphere"
+  []
+  (defn cube [] 
+    (vec3 (- (* 2.0 (rand)) 1.0) 
+          (- (* 2.0 (rand)) 1.0)
+          (- (* 2.0 (rand)) 1.0)))
+  (loop [p (cube)]
+    (if (>= (mat/dot p p) 1.0) 
+      (recur (cube))
+      p)))
 
 ;; (defmacro dlet [bindings & body]
 ;;   `(let [~@(mapcat (fn [[n v]]
@@ -43,7 +60,7 @@
       (if (not (:missed closest))
         closest))))
 
-(defrecord sphere [center radius]
+(defrecord sphere [center radius material]
   hitable
   (hit? [this r t-min t-max]
     (let [oc (mat/sub (:origin r) center)
@@ -55,28 +72,40 @@
         (let [t (/ (- (- b) (Math/sqrt discriminant)) (* 2.0 a))
               p (point-at-parameter r t)]
           (if (and (> t t-min) (< t t-max))
-            {:t t :p p :normal (mat/div (mat/sub p center) radius)}))))))
+            {:t t :p p 
+             :normal (mat/div (mat/sub p center) radius)
+             :material material}))))))
 
-(defn rand-in-unit-sphere
-  []
-  "randomly choose point within the unit sphere"
-  (defn cube [] 
-    (vec3 (- (* 2.0 (rand)) 1.0) 
-          (- (* 2.0 (rand)) 1.0)
-          (- (* 2.0 (rand)) 1.0)))
-  (loop [p (cube)]
-    (if (>= (mat/dot p p) 1.0) 
-      (recur (cube))
-      p)))
+(defprotocol scatterable
+  (scatter [this ray-in hrec]))
+
+(defrecord lambertian [albedo]
+  scatterable
+  (scatter [this ray-in {:keys [t p normal material]}]
+    (let [target (mat/add p normal (rand-in-unit-sphere))]
+      {:scattered (ray p (mat/sub target p)) 
+       :attenuation albedo})))
+
+(defrecord metal [albedo fuzz]
+  scatterable
+  (scatter [this ray-in {:keys [t p normal material]}]
+    (let [reflected (reflect (mat/normalise (:direction ray-in)) normal)
+          scattered (ray p (mat/add reflected
+                                    (mat/mul fuzz
+                                             (rand-in-unit-sphere))))]
+      (if (> (mat/dot (:direction scattered) normal) 0)
+        {:scattered scattered
+         :attenuation albedo}))))
 
 (defn color
   "compute color at pixel"
-  [r world]
-  (if-let [hrec (hit? world r 0.0 Float/MAX_VALUE)]
-    ; hit, return recursive ray
-    (let [{:keys [t p normal]} hrec
-          target (mat/add p normal (rand-in-unit-sphere))]
-      (mat/mul 0.5 (color (ray p (mat/sub target p)) world)))
+  [r world depth]
+  (if-let [hrec (hit? world r 0.001 Float/MAX_VALUE)]
+    ; hit, return scattered ray unless recursion depth too deep
+    (if-let [scat (and (< depth 50) 
+                       (scatter (:material hrec) r hrec))]
+      (mat/mul (:attenuation scat) (color (:scattered scat) world (inc depth)))
+      (vec3 0.0 0.0 0.0)) ; if depth too deep, just black
     ; else miss, return sky gradient
     (let [[ux uy uz] (mat/normalise (:direction r))
           t (* 0.5 (+ uy 1.0))]
@@ -104,8 +133,14 @@
   (let [nx (if ix (Integer/parseUnsignedInt ix) 200)
         ny (if iy (Integer/parseUnsignedInt iy) 100)
         ns (if is (Integer/parseUnsignedInt is) 100)
-        world  (hitlist. [(sphere. (vec3 0 0 -1) 0.5)
-                          (sphere. (vec3 0 -100.5 -1) 100)])]
+        world  (hitlist. [(sphere. (vec3 0 0 -1) 0.5 
+                                   (lambertian. (vec3 0.8 0.3 0.3)))
+                          (sphere. (vec3 0 -100.5 -1) 100
+                                   (lambertian. (vec3 0.8 0.8 0)))
+                          (sphere. (vec3 1 0 -1) 0.5 
+                                   (metal. (vec3 0.8 0.6 0.2) 0.3))
+                          (sphere. (vec3 -1 0 -1) 0.5 
+                                   (metal. (vec3 0.8 0.8 0.8) 1.0))])]
     (println (str "P3\n" nx " " ny "\n255\n"))
     (doseq [j (range (dec ny) -1 -1)
             i (range nx)]
@@ -113,7 +148,7 @@
             (->> 
              (repeatedly ns #(vector (/ (+ (float i) (rand)) nx)
                                      (/ (+ (float j) (rand)) ny)))
-             (pmap (fn [[u v]] (color (get-ray camera u v) world)))
+             (pmap (fn [[u v]] (color (get-ray camera u v) world 0)))
              (reduce mat/add)
              (mat/mul (/ 1.0 ns))
              (mat/sqrt)
