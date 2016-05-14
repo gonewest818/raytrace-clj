@@ -18,6 +18,17 @@
   [v n]
   (mat/sub v (mat/mul 2.0 (mat/dot v n) n)))
 
+(defn refract
+  "refract incoming vector v around normal n"
+  [v n ni-over-nt]
+  (let [uv (mat/normalise v)
+        dt (mat/dot uv n)
+        discriminant (- 1.0 (* ni-over-nt ni-over-nt (- 1 (* dt dt))))]
+    (if (> discriminant 0)
+      (mat/sub (mat/mul ni-over-nt
+                        (mat/sub v (mat/mul n dt)))
+               (mat/mul n (Math/sqrt discriminant))))))
+
 (defn point-at-parameter
   "evaluate parameterized ray at position t"
   [ray t]
@@ -97,6 +108,17 @@
         {:scattered scattered
          :attenuation albedo}))))
 
+(defrecord dielectric [ri]
+  scatterable
+  (scatter [this ray-in {:keys [t p normal material]}]
+    (let [reflected (reflect (:direction ray-in) normal)
+          dir (mat/dot (:direction ray-in) normal)
+          outward-normal (if (> dir 0) (- normal) normal)
+          ni-over-nt (if (> dir 0) ri (/ 1.0 ri))]
+      (if-let [refr (refract (:direction ray-in) outward-normal ni-over-nt)]
+        {:scattered (ray p refr)
+         :attenuation (vec3 1 1 1)}))))
+
 (defn color
   "compute color at pixel"
   [r world depth]
@@ -134,13 +156,13 @@
         ny (if iy (Integer/parseUnsignedInt iy) 100)
         ns (if is (Integer/parseUnsignedInt is) 100)
         world  (hitlist. [(sphere. (vec3 0 0 -1) 0.5 
-                                   (lambertian. (vec3 0.8 0.3 0.3)))
+                                   (lambertian. (vec3 0.1 0.2 0.5)))
                           (sphere. (vec3 0 -100.5 -1) 100
                                    (lambertian. (vec3 0.8 0.8 0)))
                           (sphere. (vec3 1 0 -1) 0.5 
                                    (metal. (vec3 0.8 0.6 0.2) 0.3))
                           (sphere. (vec3 -1 0 -1) 0.5 
-                                   (metal. (vec3 0.8 0.8 0.8) 1.0))])]
+                                   (dielectric. 1.5))])]
     (println (str "P3\n" nx " " ny "\n255\n"))
     (doseq [j (range (dec ny) -1 -1)
             i (range nx)]
