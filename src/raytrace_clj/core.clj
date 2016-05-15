@@ -39,6 +39,18 @@
   (mat/add (:origin ray)
            (mat/mul (:direction ray) t)))
 
+(defn rand-in-unit-disk
+  "randomly choose point within the unit disk"
+  []
+  (defn square [] 
+    (vec3 (- (* 2.0 (rand)) 1.0) 
+          (- (* 2.0 (rand)) 1.0)
+          0))
+  (loop [p (square)]
+    (if (>= (mat/dot p p) 1.0) 
+      (recur (square))
+      p)))
+
 (defn rand-in-unit-sphere
   "randomly choose point within the unit sphere"
   []
@@ -194,6 +206,38 @@
                      (mat/mul 2.0 half-width u)
                      (mat/mul 2.0 half-height v))))
 
+(defrecord thin-lens-camera [origin lleft horiz vert u v w aperture]
+  camera
+  (get-ray [this s t]
+    (let [lens-radius (/ aperture 2.0)
+          rd          (mat/mul lens-radius (rand-in-unit-disk))
+          offset      (mat/add (mat/mul u (mat/mget rd 0))
+                               (mat/mul v (mat/mget rd 1)))]
+      (ray (mat/add origin offset) 
+           (mat/add lleft
+                    (mat/mul s horiz)
+                    (mat/mul t vert)
+                    (mat/negate origin)
+                    (mat/negate offset))))))
+
+(defn make-thin-lens-camera
+  "make a thin-lens camera based on aperture and focus distance"
+  [lookfrom lookat vup vfov aspect aperture focus-dist]
+  (let [theta       (* vfov (/ Math/PI 180.0))
+        half-height (Math/tan (/ theta 2.0))
+        half-width  (* aspect half-height)
+        w           (mat/normalise (mat/sub lookfrom lookat))
+        u           (mat/normalise (mat/cross vup w))
+        v           (mat/cross w u)]
+    (thin-lens-camera. lookfrom
+                       (mat/sub lookfrom
+                                (mat/add (mat/mul focus-dist half-width u)
+                                         (mat/mul focus-dist half-height v)
+                                         (mat/mul focus-dist w)))
+                       (mat/mul 2.0 focus-dist half-width u)
+                       (mat/mul 2.0 focus-dist half-height v)
+                       u v w aperture)))
+
 (defn show-progress
   [image j filename tstart]
   (let [elapsed-time   (/ (- (System/currentTimeMillis) tstart) 1000.0)
@@ -221,20 +265,29 @@
         ny (if iy (Integer/parseUnsignedInt iy) 100)
         ns (if is (Integer/parseUnsignedInt is) 100)
         image (new-image nx ny)
-        camera (make-pinhole-camera (vec3 -2 2 1)
-                                    (vec3 0 0 -1)
-                                    (vec3 0 1 0)
-                                    20.0 (/ (float nx) (float ny)))
-        R (/ Math/PI 4.0)
-        world2 (hitlist. [(sphere. (vec3 (- R) 0 -1) R
-                                  (lambertian. (vec3 0 0 1)))
-                         (sphere. (vec3     R 0 -1) R
-                                  (lambertian. (vec3 1 0 0)))])
-        camera2 (map->pinhole-camera 
-                {:origin (vec3 0.0 0.0 0.0)
-                 :lleft  (vec3 -2.0 -1.0 -1.0)
-                 :horiz  (vec3 4.0 0.0 0.0)
-                 :vert   (vec3 0.0 2.0 0.0)})
+        lookfrom (vec3 3 3 2)
+        lookat (vec3 0 0 -1)
+        camera (make-thin-lens-camera lookfrom
+                                      lookat
+                                      (vec3 0 1 0)
+                                      20
+                                      (/ (float nx) (float ny))
+                                      2.0
+                                      (mat/length (mat/sub lookfrom lookat)))
+        ;; camera3 (make-pinhole-camera (vec3 -2 2 1)
+        ;;                             (vec3 0 0 -1)
+        ;;                             (vec3 0 1 0)
+        ;;                             20.0 (/ (float nx) (float ny)))
+        ;; R (/ Math/PI 4.0)
+        ;; world2 (hitlist. [(sphere. (vec3 (- R) 0 -1) R
+        ;;                           (lambertian. (vec3 0 0 1)))
+        ;;                  (sphere. (vec3     R 0 -1) R
+        ;;                           (lambertian. (vec3 1 0 0)))])
+        ;; camera2 (map->pinhole-camera 
+        ;;         {:origin (vec3 0.0 0.0 0.0)
+        ;;          :lleft  (vec3 -2.0 -1.0 -1.0)
+        ;;          :horiz  (vec3 4.0 0.0 0.0)
+        ;;          :vert   (vec3 0.0 2.0 0.0)})
         world (hitlist. [(sphere. (vec3 0 0 -1) 0.5 
                                   (lambertian. (vec3 0.1 0.2 0.5)))
                          (sphere. (vec3 0 -100.5 -1) 100
