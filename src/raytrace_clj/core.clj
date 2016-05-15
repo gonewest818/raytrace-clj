@@ -176,7 +176,6 @@
                 (vec3 0.5 0.7 1.0)
                 t))))
 
-
 (defprotocol camera
   (get-ray [this u v]))
 
@@ -238,6 +237,37 @@
                        (mat/mul 2.0 focus-dist half-height v)
                        u v w aperture)))
 
+(defn make-random-scene
+  "make a random scene"
+  []
+  (concat
+   ;; hero objects
+   (list
+    (sphere. (vec3 0 -1000 0) 1000 (lambertian. (vec3 0.5 0.5 0.5))) ; ground
+    (sphere. (vec3  0 1 0) 1 (dielectric. 1.5))
+    (sphere. (vec3 -4 1 0) 1 (lambertian. (vec3 0.4 0.2 0.1)))
+    (sphere. (vec3  4 1 0) 1 (metal. (vec3 0.7 0.6 0.5) 0.0)))
+   ;; random ones
+   (for [a (range -11 11)
+         b (range -11 11)]
+     (let [choose-mat (rand)
+           center (vec3 (+ a (* 0.9 (rand)))
+                        0.2
+                        (+ b (* 0.9 (rand))))]
+       (if (> (mat/length (mat/sub center (vec3 4 0.2 0))) 0.9)
+         (cond
+           (< choose-mat 0.8) ; diffuse
+           (sphere. center 0.2 (lambertian. (vec3 (* (rand) (rand))
+                                                  (* (rand) (rand))
+                                                  (* (rand) (rand)))))
+           (< choose-mat 0.95) ; metal
+           (sphere. center 0.2 (metal. (vec3 (* 0.5 (+ 1 (rand)))
+                                             (* 0.5 (+ 1 (rand)))
+                                             (* 0.5 (+ 1 (rand))))
+                                       (* 0.5 (rand))))
+           :else ; glass
+           (sphere. center 0.2 (dielectric. 1.5))))))))
+
 (defn show-progress
   [image j filename tstart]
   (let [elapsed-time   (/ (- (System/currentTimeMillis) tstart) 1000.0)
@@ -265,39 +295,16 @@
         ny (if iy (Integer/parseUnsignedInt iy) 100)
         ns (if is (Integer/parseUnsignedInt is) 100)
         image (new-image nx ny)
-        lookfrom (vec3 3 3 2)
-        lookat (vec3 0 0 -1)
+        lookfrom (vec3 13 2 3)
+        lookat (vec3 0 0 0)
         camera (make-thin-lens-camera lookfrom
                                       lookat
                                       (vec3 0 1 0)
                                       20
                                       (/ (float nx) (float ny))
-                                      2.0
-                                      (mat/length (mat/sub lookfrom lookat)))
-        ;; camera3 (make-pinhole-camera (vec3 -2 2 1)
-        ;;                             (vec3 0 0 -1)
-        ;;                             (vec3 0 1 0)
-        ;;                             20.0 (/ (float nx) (float ny)))
-        ;; R (/ Math/PI 4.0)
-        ;; world2 (hitlist. [(sphere. (vec3 (- R) 0 -1) R
-        ;;                           (lambertian. (vec3 0 0 1)))
-        ;;                  (sphere. (vec3     R 0 -1) R
-        ;;                           (lambertian. (vec3 1 0 0)))])
-        ;; camera2 (map->pinhole-camera 
-        ;;         {:origin (vec3 0.0 0.0 0.0)
-        ;;          :lleft  (vec3 -2.0 -1.0 -1.0)
-        ;;          :horiz  (vec3 4.0 0.0 0.0)
-        ;;          :vert   (vec3 0.0 2.0 0.0)})
-        world (hitlist. [(sphere. (vec3 0 0 -1) 0.5 
-                                  (lambertian. (vec3 0.1 0.2 0.5)))
-                         (sphere. (vec3 0 -100.5 -1) 100
-                                  (lambertian. (vec3 0.8 0.8 0)))
-                         (sphere. (vec3 1 0 -1) 0.5 
-                                  (metal. (vec3 0.8 0.6 0.2) 0.3))
-                         (sphere. (vec3 -1 0 -1) 0.5 
-                                  (dielectric. 1.5))
-                         (sphere. (vec3 -1 0 -1) -0.45 
-                                  (dielectric. 1.5))])]
+                                      0.1
+                                      10.0)
+        world (hitlist. (make-random-scene))]
     (doseq [j (range (dec ny) -1 -1)
             i (range nx)]
       (let [[ir ig ib]
