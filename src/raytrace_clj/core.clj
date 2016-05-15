@@ -1,7 +1,8 @@
 (ns raytrace-clj.core
   (:require [clojure.core.matrix :as mat]
-            [mikera.image.core :refer [new-image set-pixel show save]]
-            [mikera.image.colours :refer [rgb rgb-from-components]])
+            [mikera.image.core :refer [new-image set-pixel width height show save]]
+            [mikera.image.colours :refer [rgb-from-components]])
+  (:import [org.imgscalr Scalr])
   (:gen-class))
 
 (mat/set-current-implementation :vectorz)
@@ -163,26 +164,52 @@
                 (vec3 0.5 0.7 1.0)
                 t))))
 
-(def camera
-  {:origin (vec3 0.0 0.0 0.0)
-   :lleft  (vec3 -2.0 -1.0 -1.0)
-   :horiz  (vec3 4.0 0.0 0.0)
-   :vert   (vec3 0.0 2.0 0.0)})
 
-(defn get-ray
-  [cam u v]
-  (let [{:keys [origin lleft horiz vert]} cam]
+(defprotocol camera
+  (get-ray [this u v]))
+
+(defrecord pinhole-camera [origin lleft horiz vert]
+  camera
+  (get-ray [this u v]
     (ray origin 
          (mat/add lleft
                   (mat/mul u horiz)
                   (mat/mul v vert)
                   (mat/negate origin)))))
 
+(defn make-pinhole-camera
+  "make a pinhole camera based on field of view and aspect ratio"
+  [lookfrom lookat vup vfov aspect]
+  (let [theta       (* vfov (/ Math/PI 180.0))
+        half-height (Math/tan (/ theta 2.0))
+        half-width  (* aspect half-height)
+        w           (mat/normalise (mat/sub lookfrom lookat))
+        u           (mat/normalise (mat/cross vup w))
+        v           (mat/cross w u)]
+    (pinhole-camera. lookfrom
+                     (mat/sub lookfrom
+                              (mat/add (mat/mul half-width u)
+                                       (mat/mul half-height v)
+                                       w))
+                     (mat/mul 2.0 half-width u)
+                     (mat/mul 2.0 half-height v))))
+
 (defn show-progress
-  [image j ny filename tstart]
-  (let [completed-rows (- (dec ny) j)
-        elapsed-time (/ (- (System/currentTimeMillis) tstart) 1000.0)]
-    (show image :title filename)
+  [image j filename tstart]
+  (let [elapsed-time   (/ (- (System/currentTimeMillis) tstart) 1000.0)
+        nx (width image)
+        ny (height image)
+        zoom (min (Math/floorDiv 1280 nx) (Math/floorDiv 800 ny) 4)
+        completed-rows (- (dec ny) j)]
+    (if (> zoom 1) 
+      (show (Scalr/resize image
+                          org.imgscalr.Scalr$Method/SPEED
+                          org.imgscalr.Scalr$Mode/FIT_EXACT
+                          (* zoom nx)
+                          (* zoom ny)
+                          nil)
+            :title filename)
+      (show image :title filename))
     (println (format "%10.3f" elapsed-time) ":"
              completed-rows "/" ny "complete")))
 
@@ -194,6 +221,20 @@
         ny (if iy (Integer/parseUnsignedInt iy) 100)
         ns (if is (Integer/parseUnsignedInt is) 100)
         image (new-image nx ny)
+        camera (make-pinhole-camera (vec3 -2 2 1)
+                                    (vec3 0 0 -1)
+                                    (vec3 0 1 0)
+                                    20.0 (/ (float nx) (float ny)))
+        R (/ Math/PI 4.0)
+        world2 (hitlist. [(sphere. (vec3 (- R) 0 -1) R
+                                  (lambertian. (vec3 0 0 1)))
+                         (sphere. (vec3     R 0 -1) R
+                                  (lambertian. (vec3 1 0 0)))])
+        camera2 (map->pinhole-camera 
+                {:origin (vec3 0.0 0.0 0.0)
+                 :lleft  (vec3 -2.0 -1.0 -1.0)
+                 :horiz  (vec3 4.0 0.0 0.0)
+                 :vert   (vec3 0.0 2.0 0.0)})
         world (hitlist. [(sphere. (vec3 0 0 -1) 0.5 
                                   (lambertian. (vec3 0.1 0.2 0.5)))
                          (sphere. (vec3 0 -100.5 -1) 100
@@ -218,8 +259,6 @@
              (mat/emap int)
              (seq))]    ; needed because vectorz/vector can't be destructured
         (set-pixel image i (- (dec ny) j) (rgb-from-components ir ig ib))
-        (if (= i (dec nx)) (show-progress image j ny filename tstart))))
+        (if (= i (dec nx)) (show-progress image j filename tstart))))
     (save image filename)
-    (println "wrote" filename)
-    ;(shutdown-agents)
-))
+    (println "wrote" filename)))
