@@ -249,24 +249,24 @@
     (sphere. (vec3  4 1 0) 1 (metal. (vec3 0.7 0.6 0.5) 0.0)))
    ;; random ones
    (for [a (range -11 11)
-         b (range -11 11)]
-     (let [choose-mat (rand)
-           center (vec3 (+ a (* 0.9 (rand)))
-                        0.2
-                        (+ b (* 0.9 (rand))))]
-       (if (> (mat/length (mat/sub center (vec3 4 0.2 0))) 0.9)
-         (cond
-           (< choose-mat 0.8) ; diffuse
-           (sphere. center 0.2 (lambertian. (vec3 (* (rand) (rand))
-                                                  (* (rand) (rand))
-                                                  (* (rand) (rand)))))
-           (< choose-mat 0.95) ; metal
-           (sphere. center 0.2 (metal. (vec3 (* 0.5 (+ 1 (rand)))
-                                             (* 0.5 (+ 1 (rand)))
-                                             (* 0.5 (+ 1 (rand))))
-                                       (* 0.5 (rand))))
-           :else ; glass
-           (sphere. center 0.2 (dielectric. 1.5))))))))
+         b (range -11 11)
+         :let [center (vec3 (+ a (* 0.9 (rand)))
+                            0.2
+                            (+ b (* 0.9 (rand))))
+               choose-mat (rand)]
+         :when (> (mat/length (mat/sub center (vec3 4 0.2 0))) 0.9)]
+     (cond
+       (< choose-mat 0.8) ; diffuse
+       (sphere. center 0.2 (lambertian. (vec3 (* (rand) (rand))
+                                              (* (rand) (rand))
+                                              (* (rand) (rand)))))
+       (< choose-mat 0.95) ; metal
+       (sphere. center 0.2 (metal. (vec3 (* 0.5 (+ 1 (rand)))
+                                         (* 0.5 (+ 1 (rand)))
+                                         (* 0.5 (+ 1 (rand))))
+                                   (* 0.5 (rand))))
+       :else ; glass
+       (sphere. center 0.2 (dielectric. 1.5))))))
 
 (defn show-progress
   [image j filename tstart]
