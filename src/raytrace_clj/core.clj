@@ -4,6 +4,7 @@
             [mikera.image.colours :refer [rgb rgb-from-components]])
   (:gen-class))
 
+(mat/set-current-implementation :vectorz)
 
 (defn vec3
   "convenience function to make 3d vectors"
@@ -89,18 +90,18 @@
              :normal (mat/div (mat/sub p center) radius)
              :material material}))))))
 
-(defprotocol scatterable
+(defprotocol shader
   (scatter [this ray-in hrec]))
 
 (defrecord lambertian [albedo]
-  scatterable
+  shader
   (scatter [this ray-in {:keys [t p normal material]}]
     (let [target (mat/add p normal (rand-in-unit-sphere))]
       {:scattered (ray p (mat/sub target p)) 
        :attenuation albedo})))
 
 (defrecord metal [albedo fuzz]
-  scatterable
+  shader
   (scatter [this ray-in {:keys [t p normal material]}]
     (let [reflected (reflect (mat/normalise (:direction ray-in)) normal)
           scattered (ray p (mat/add reflected
@@ -110,7 +111,6 @@
         {:scattered scattered
          :attenuation albedo}))))
 
-
 (defn schlick
   "polynomial approximation of glass reflectivity"
   [cosine ri]
@@ -119,7 +119,7 @@
     (+ r0 (* (- 1.0 r0) (Math/pow (- 1.0 cosine) 5)))))
 
 (defrecord dielectric [ri]
-  scatterable
+  shader
   (scatter [this ray-in {:keys [t p normal material]}]
     (let [ray-direction (:direction ray-in)
           ray-dot-n     (mat/dot ray-direction normal)
@@ -156,7 +156,8 @@
       (mat/mul (:attenuation scat) (color (:scattered scat) world (inc depth)))
       (vec3 0.0 0.0 0.0)) ; if depth too deep, just black
     ; else miss, return sky gradient
-    (let [[ux uy uz] (mat/normalise (:direction r))
+    (let [uy (mat/mget (mat/normalise (:direction r)) 1)
+          ;[ux uy uz] (mat/normalise (:direction r))
           t (* 0.5 (+ uy 1.0))]
       (mat/lerp (vec3 1.0 1.0 1.0) 
                 (vec3 0.5 0.7 1.0)
@@ -177,11 +178,22 @@
                   (mat/mul v vert)
                   (mat/negate origin)))))
 
+(defn show-progress
+  [image j ny filename tstart]
+  (let [completed-rows (- (dec ny) j)
+        elapsed-time (/ (- (System/currentTimeMillis) tstart) 1000.0)]
+    (show image :title filename)
+    (println (format "%10.3f" elapsed-time) ":"
+             completed-rows "/" ny "complete")))
+
 (defn -main
-  [& [is ix iy]]
-  (let [nx (if ix (Integer/parseUnsignedInt ix) 200)
+  [& [name ix iy is]]
+  (let [tstart (System/currentTimeMillis)
+        filename (if name name "render.png")
+        nx (if ix (Integer/parseUnsignedInt ix) 200)
         ny (if iy (Integer/parseUnsignedInt iy) 100)
         ns (if is (Integer/parseUnsignedInt is) 100)
+        image (new-image nx ny)
         world (hitlist. [(sphere. (vec3 0 0 -1) 0.5 
                                   (lambertian. (vec3 0.1 0.2 0.5)))
                          (sphere. (vec3 0 -100.5 -1) 100
@@ -191,9 +203,7 @@
                          (sphere. (vec3 -1 0 -1) 0.5 
                                   (dielectric. 1.5))
                          (sphere. (vec3 -1 0 -1) -0.45 
-                                  (dielectric. 1.5))])
-        image (new-image nx ny)]
-    (println (str "P3\n" nx " " ny "\n255\n"))
+                                  (dielectric. 1.5))])]
     (doseq [j (range (dec ny) -1 -1)
             i (range nx)]
       (let [[ir ig ib]
@@ -205,8 +215,11 @@
              (mat/mul (/ 1.0 ns))
              (mat/sqrt)
              (mat/mul 255.99)
-             (mat/emap int))]
-        (set-pixel image i (- ny j) (rgb-from-components ir ig ib))
-        (if (= i (dec nx)) (show image))
-        (println ir ig ib))))
-  (shutdown-agents))
+             (mat/emap int)
+             (seq))]    ; needed because vectorz/vector can't be destructured
+        (set-pixel image i (- (dec ny) j) (rgb-from-components ir ig ib))
+        (if (= i (dec nx)) (show-progress image j ny filename tstart))))
+    (save image filename)
+    (println "wrote" filename)
+    ;(shutdown-agents)
+))
