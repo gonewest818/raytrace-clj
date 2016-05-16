@@ -30,7 +30,7 @@
         discriminant (- 1.0 (* ni-over-nt ni-over-nt (- 1 (* dt dt))))]
     (if (> discriminant 0)
       (mat/sub (mat/mul ni-over-nt
-                        (mat/sub v (mat/mul n dt)))
+                        (mat/sub uv (mat/mul n dt)))
                (mat/mul n (Math/sqrt discriminant))))))
 
 (defn point-at-parameter
@@ -273,8 +273,7 @@
   (let [elapsed-time   (/ (- (System/currentTimeMillis) tstart) 1000.0)
         nx (width image)
         ny (height image)
-        zoom (min (Math/floorDiv 1280 nx) (Math/floorDiv 800 ny) 4)
-        completed-rows (- (dec ny) j)]
+        zoom (min (Math/floorDiv 1280 nx) (Math/floorDiv 800 ny) 4)]
     (if (> zoom 1) 
       (show (Scalr/resize image
                           org.imgscalr.Scalr$Method/SPEED
@@ -284,8 +283,8 @@
                           nil)
             :title filename)
       (show image :title filename))
-    (println (format "%10.3f" elapsed-time) ":"
-             completed-rows "/" ny "complete")))
+    (println (format "%10.3f seconds" elapsed-time) ":"
+             (inc j) "/" ny "complete")))
 
 (defn -main
   [& [name ix iy is]]
@@ -305,7 +304,7 @@
                                       0.1
                                       10.0)
         world (hitlist. (make-random-scene))]
-    (doseq [j (range (dec ny) -1 -1)
+    (doseq [j (range ny)
             i (range nx)]
       (let [[ir ig ib]
             (->> 
