@@ -25,16 +25,18 @@
   shader
   (scatter [this ray-in {:keys [t p normal material]}]
     (let [target (mat/add p normal (rand-in-unit-sphere))]
-      {:scattered (ray p (mat/sub target p)) 
+      {:scattered (ray p (mat/sub target p) (:time ray-in))
        :attenuation albedo})))
 
 (defrecord metal [albedo fuzz]
   shader
   (scatter [this ray-in {:keys [t p normal material]}]
     (let [reflected (reflect (mat/normalise (:direction ray-in)) normal)
-          scattered (ray p (mat/add reflected
-                                    (mat/mul fuzz
-                                             (rand-in-unit-sphere))))]
+          scattered (ray p
+                         (mat/add reflected
+                                  (mat/mul fuzz
+                                           (rand-in-unit-sphere)))
+                         (:time ray-in))]
       (if (> (mat/dot (:direction scattered) normal) 0)
         {:scattered scattered
          :attenuation albedo}))))
@@ -65,11 +67,11 @@
         ;; if refraction possible, then choose reflect or refract randomly
         (if (< (rand) (schlick cosine ri))
           ;; reflected
-          {:scattered (ray p (reflect ray-direction normal))
+          {:scattered (ray p (reflect ray-direction normal) (:time ray-in))
            :attenuation (vec3 1 1 1)}
           ;; refracted
-          {:scattered (ray p refr)
+          {:scattered (ray p refr (:time ray-in))
            :attenuation (vec3 1 1 1)})
         ;; otherwise reflected
-        {:scattered (ray p (reflect ray-direction normal))
+        {:scattered (ray p (reflect ray-direction normal) (:time ray-in))
          :attenuation (vec3 1 1 1)}))))

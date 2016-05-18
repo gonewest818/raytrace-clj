@@ -8,8 +8,8 @@
 
 (defn ray
   "simple model for a ray (note: direction is not normalized))"
-  [a b]
-  {:origin a :direction b})
+  [origin direction time]
+  {:origin origin :direction direction :time time})
 
 (defn point-at-parameter
   "evaluate parameterized ray at position t"

@@ -2,12 +2,12 @@
   (:require [clojure.core.matrix :as mat]
             [raytrace-clj.util :refer [vec3]]
             [raytrace-clj.shader :refer [->lambertian ->metal ->dielectric]]
-            [raytrace-clj.hitable :refer [->sphere]]
+            [raytrace-clj.hitable :refer [->sphere ->moving-sphere]]
 ))
 
 (defn make-random-scene
   "make a random scene"
-  []
+  [moving]
   (concat
    ;; first create the hero objects
    (list
@@ -26,9 +26,15 @@
      (cond
        ;; 80% are diffuse
        (< choose-mat 0.8)
-       (->sphere center 0.2 (->lambertian (vec3 (* (rand) (rand))
-                                                (* (rand) (rand))
-                                                (* (rand) (rand)))))
+       (if moving
+         (->moving-sphere center 0.0 
+                          (mat/add center (vec3 0 (* 0.5 (rand)) 0)) 1.0
+                          0.2 (->lambertian (vec3 (* (rand) (rand))
+                                                  (* (rand) (rand))
+                                                  (* (rand) (rand)))))
+         (->sphere center 0.2 (->lambertian (vec3 (* (rand) (rand))
+                                                  (* (rand) (rand))
+                                                  (* (rand) (rand))))))
        ;; 15% are metal
        (< choose-mat 0.95)
        (->sphere center 0.2 (->metal (vec3 (* 0.5 (+ 1 (rand)))

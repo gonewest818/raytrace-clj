@@ -12,7 +12,8 @@
          (mat/add lleft
                   (mat/mul u horiz)
                   (mat/mul v vert)
-                  (mat/negate origin)))))
+                  (mat/negate origin))
+         0)))
 
 (defn make-pinhole-camera
   "make a pinhole camera based on field of view and aspect ratio"
@@ -31,23 +32,24 @@
                      (mat/mul 2.0 half-width u)
                      (mat/mul 2.0 half-height v))))
 
-(defrecord thin-lens-camera [origin lleft horiz vert u v w aperture]
+(defrecord thin-lens-camera [origin lleft horiz vert u v w aperture t0 t1]
   camera
   (get-ray [this s t]
     (let [lens-radius (/ aperture 2.0)
           rd          (mat/mul lens-radius (rand-in-unit-disk))
           offset      (mat/add (mat/mul u (mat/mget rd 0))
                                (mat/mul v (mat/mget rd 1)))]
-      (ray (mat/add origin offset) 
+      (ray (mat/add origin offset)
            (mat/add lleft
                     (mat/mul s horiz)
                     (mat/mul t vert)
                     (mat/negate origin)
-                    (mat/negate offset))))))
+                    (mat/negate offset))
+           (+ t0 (* (- t1 t0) (rand)))))))
 
 (defn make-thin-lens-camera
   "make a thin-lens camera based on aperture and focus distance"
-  [lookfrom lookat vup vfov aspect aperture focus-dist]
+  [lookfrom lookat vup vfov aspect aperture focus-dist t0 t1]
   (let [theta       (* vfov (/ Math/PI 180.0))
         half-height (Math/tan (/ theta 2.0))
         half-width  (* aspect half-height)
@@ -61,4 +63,4 @@
                                          (mat/mul focus-dist w)))
                        (mat/mul 2.0 focus-dist half-width u)
                        (mat/mul 2.0 focus-dist half-height v)
-                       u v w aperture)))
+                       u v w aperture t0 t1)))

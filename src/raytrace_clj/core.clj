@@ -43,9 +43,11 @@
                                       (vec3 0 1 0)
                                       20
                                       (/ (float nx) (float ny))
-                                      0.1
-                                      10.0)
-        world (->hitlist (make-random-scene))]
+                                      0.0
+                                      10.0
+                                      0.0
+                                      1.0)
+        world (->hitlist (make-random-scene true))]
     (doseq [j (range ny)
             i (range nx)]
       (let [[ir ig ib]
