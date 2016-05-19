@@ -17,6 +17,7 @@
                           nil)
             :title filename)
       (show image :title filename))
-    (println (format "%10.3f seconds" elapsed-time) ":"
-             (inc j) "/" ny "complete")))
-
+    (println (format "%.2fs, row %d / %d, %d%%, ETA %.2fs"
+                     elapsed-time (inc j) ny
+                     (int (* 100.0 (/ (inc j) ny)))
+                     (/ (* elapsed-time (- ny (inc j))) (inc j))))))
