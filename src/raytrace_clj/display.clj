@@ -7,7 +7,7 @@
   (let [elapsed-time   (/ (- (System/currentTimeMillis) tstart) 1000.0)
         nx (width image)
         ny (height image)
-        zoom (min (Math/floorDiv 1280 nx) (Math/floorDiv 800 ny) 4)]
+        zoom (min (Math/floorDiv 1100 nx) (Math/floorDiv 800 ny) 4)]
     (if (> zoom 1) 
       (show (Scalr/resize image
                           org.imgscalr.Scalr$Method/SPEED

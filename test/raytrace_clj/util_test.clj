@@ -32,16 +32,18 @@
 
 (deftest ray-tests
   (testing "construction"
-    (def r (ray (vec3 1 2 3) (vec3 4 5 6)))
+    (def r (ray (vec3 1 2 3) (vec3 4 5 6) 0.1))
     (is (contains? (set (keys r)) :origin))
     (is (contains? (set (keys r)) :direction)) 
+    (is (contains? (set (keys r)) :time)) 
     (is (mat/equals (:direction r) (vec3 4 5 6)) "get direction")
-    (is (mat/equals (:origin r) (vec3 1 2 3)) "get origin")))
+    (is (mat/equals (:origin r) (vec3 1 2 3)) "get origin")
+    (is (= (:time r) 0.1) "get time")))
 
 
 (deftest point-at-parameter-test
   (testing "point-at-parameter"
-    (def r (ray (vec3 1 2 3) (vec3 4 5 6)))
+    (def r (ray (vec3 1 2 3) (vec3 4 5 6) 7.0))
     (is (= (vec3 1 2 3) (point-at-parameter r 0)))
     (is (= (vec3 5 7 9) (point-at-parameter r 1)))
     (is (= (vec3 -3 -3 -3) (point-at-parameter r -1)))))

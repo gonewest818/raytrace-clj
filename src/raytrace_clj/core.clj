@@ -47,7 +47,8 @@
                                       10.0
                                       0.0
                                       1.0)
-        world (->hitlist (make-random-scene true))]
+        ;world (->hitlist (make-random-scene 3 true))]
+        world (make-bvh (make-random-scene 3 true) 0.0 1.0)]
     (doseq [j (range ny)
             i (range nx)]
       (let [[ir ig ib]
