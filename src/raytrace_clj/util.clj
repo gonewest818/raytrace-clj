@@ -17,6 +17,13 @@
   (mat/add (:origin ray)
            (mat/mul (:direction ray) t)))
 
+(defn make-seeded-prng [seed]
+  "create a random number generator with seed"
+  (let [gen (java.util.Random. seed)]
+    (fn [] (.nextDouble gen))))
+
+(def prng (make-seeded-prng 0))
+
 (defn rand-in-unit-disk
   "randomly choose point within the unit disk"
   []
@@ -41,3 +48,10 @@
       (recur (cube))
       p)))
 
+(defmacro dlet [bindings & body]
+  `(let [~@(mapcat (fn [[n v]]
+                     (if (or (vector? n) (map? n))
+                       [n v]
+                       [n v '_ `(println (name '~n) ":" ~v)]))
+                   (partition 2 bindings))]
+     ~@body))

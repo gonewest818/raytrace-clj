@@ -1,5 +1,6 @@
 (ns raytrace-clj.hitable-test
   (:require [clojure.test :refer :all]
+            [clojure.core.matrix :as mat]
             [raytrace-clj.util :refer :all]
             [raytrace-clj.hitable :refer :all]
             [raytrace-clj.shader :refer [->lambertian]]))
@@ -122,21 +123,58 @@
                 0 Float/MAX_VALUE)                    "along y")
       (is (hit? box (ray (vec3 0 0 -2) (vec3 0 0 1) 0)
                 0 Float/MAX_VALUE)                    "along z")
-      (is (not (hit? box (ray (vec3 -2 1 0) (vec3 1 0 0) 0)
-                 0 Float/MAX_VALUE))    )
-      (is (not (hit? box (ray (vec3 1 -2 0) (vec3 0 1 0) 0)
-                 0 Float/MAX_VALUE))                  "grazing y")
-      (is (not (hit? box (ray (vec3 1 0 -2) (vec3 0 0 1) 0)
-                 0 Float/MAX_VALUE))                  "grazing z")))
+      (is (hit? box (ray (vec3 -2 1 0) (vec3 1 0 0) 0)
+                0 Float/MAX_VALUE)                    "grazing x")
+      (is (hit? box (ray (vec3 1 -2 0) (vec3 0 1 0) 0)
+                0 Float/MAX_VALUE)                    "grazing y")
+      (is (hit? box (ray (vec3 1 0 -2) (vec3 0 0 1) 0)
+                0 Float/MAX_VALUE)                    "grazing z")))
   (testing "combining"
     (let [a (bbox (->sphere (vec3 -1 2 -3) 0.1 nil) 0 0)
           b (bbox (->sphere (vec3 1 -2 3) 0.1 nil) 0 0)
           c (make-surrounding-bbox a b)]
-      (is (= -1.1 (mat/mget (:vmin c) 0)) "min x")
-      (is (= -2.1 (mat/mget (:vmin c) 1)) "min y")
-      (is (= -3.1 (mat/mget (:vmin c) 2)) "min z")
-      (is (= 1.1 (mat/mget (:vmax c) 0)) "max x")
-      (is (= 2.1 (mat/mget (:vmax c) 1)) "max y")
-      (is (= 3.1 (mat/mget (:vmax c) 2)) "max z"))))
+      (is (= -1.1 (mat/mget (:vmin c) 0))             "min x")
+      (is (= -2.1 (mat/mget (:vmin c) 1))             "min y")
+      (is (= -3.1 (mat/mget (:vmin c) 2))             "min z")
+      (is (= 1.1 (mat/mget (:vmax c) 0))              "max x")
+      (is (= 2.1 (mat/mget (:vmax c) 1))              "max y")
+      (is (= 3.1 (mat/mget (:vmax c) 2))              "max z"))))
 
 
+(deftest bvh-tests
+  (testing "constructor"
+    (let [f (vec3 0 0 0)
+          g (vec3 1 1 1)
+          bb (->aabb f g)]
+      (is (= (type (->bvh-node bb bb bb))
+             raytrace_clj.hitable.bvh-node))))
+  (testing "scene construction"
+    (let [points [(vec3 0 0 0)
+                  (vec3 1 2 3)
+                  (vec3 -2 -1 -3)
+                  (vec3 3 -1 2)
+                  (vec3 -3 2 1)]
+          spheres (map #(->sphere % 0.1 material) points)]
+      ;; (doseq [i (range 1 6)]
+      ;;   (printf "==%s==\n" i)
+      ;;   (clojure.pprint/pprint (make-bvh (take i spheres) 0 1)))
+
+      ;; #spy/p (hit? #spy/p (->sphere (vec3 4 1 0) 1.0 material)
+      ;;              #spy/p (ray (vec3 4 5 20) 
+      ;;                          (mat/sub (vec3 4 1 0) (vec3 4 5 20))
+      ;;                          0) 0 1)
+
+      ;; #spy/p (hit? #spy/p (make-bvh (list (->sphere (vec3 4 1 0) 1.0 material)) 0 1)
+      ;;              #spy/p (ray (vec3 4 5 20) 
+      ;;                          (mat/sub (vec3 4 1 0) (vec3 4 5 20))
+      ;;                          0)
+      ;;              0 1)
+
+      ;; #spy/p (hit? #spy/p (->aabb (vec3 3 0 -1) (vec3 5 2 1))
+      ;;              #spy/p (ray (vec3 4 5 20) 
+      ;;                          (mat/sub (vec3 4 1 0) (vec3 4 5 20))
+      ;;                          0)
+      ;;              0 Float/MAX_VALUE)
+
+
+)))

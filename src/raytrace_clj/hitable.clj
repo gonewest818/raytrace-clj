@@ -32,8 +32,8 @@
     ;; simplest way to express this is with core.matrix, but
     ;; would this be faster by doing element-wise computations
     ;; and bailing when the overlap test fails for any element?
-    (let [m (mat/sub vmin (mat/div (:origin r) (:direction r)))
-          n (mat/sub vmax (mat/div (:origin r) (:direction r)))
+    (let [m (mat/div (mat/sub vmin (:origin r)) (:direction r))
+          n (mat/div (mat/sub vmax (:origin r)) (:direction r))
           t0 (mat/emap min m n)
           t1 (mat/emap max m n)
           tmin (max (mat/maximum t0) t-min)
