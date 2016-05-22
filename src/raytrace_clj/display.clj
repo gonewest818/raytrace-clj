@@ -3,7 +3,7 @@
   (:import [org.imgscalr Scalr]))
 
 (defn show-progress
-  [image j filename tstart]
+  [image pct filename tstart]
   (let [elapsed-time   (/ (- (System/currentTimeMillis) tstart) 1000.0)
         nx (width image)
         ny (height image)
@@ -17,7 +17,7 @@
                           nil)
             :title filename)
       (show image :title filename))
-    (println (format "%.2fs, row %d / %d, %d%%, ETA %.2fs"
-                     elapsed-time (inc j) ny
-                     (int (* 100.0 (/ (inc j) ny)))
-                     (/ (* elapsed-time (- ny (inc j))) (inc j))))))
+    (println (format "%.2fs, %d%%, ETA %.2fs"
+                     elapsed-time
+                     (int (* 100.0 pct))
+                     (/ (* elapsed-time (- 1 pct)) pct)))))

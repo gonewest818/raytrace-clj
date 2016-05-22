@@ -13,20 +13,49 @@
 (mat/set-current-implementation :vectorz)
 
 (defn color
-  "compute color at pixel"
-  [r world depth]
-  (if-let [hrec (hit? world r 0.001 Float/MAX_VALUE)]
-    ; hit, return scattered ray unless recursion depth too deep
-    (if-let [scat (and (< depth 50) 
-                       (scatter (:material hrec) r hrec))]
-      (mat/mul (:attenuation scat) (color (:scattered scat) world (inc depth)))
-      (vec3 0.0 0.0 0.0)) ; if depth too deep, just black
-    ; else miss, return sky gradient
-    (let [uy (mat/mget (mat/normalise (:direction r)) 1)
-          t (* 0.5 (+ uy 1.0))]
-      (mat/lerp (vec3 1.0 1.0 1.0) 
-                (vec3 0.5 0.7 1.0)
-                t))))
+  "compute color for ray up to an optional recursion depth"
+  ([r world] (color r world 50))
+  ([r world depth]
+   (if-let [hrec (hit? world r 0.001 Float/MAX_VALUE)]
+     ;; hit, return scattered ray unless recursion depth too deep
+     (if-let [scat (and (> depth 0) 
+                        (scatter (:material hrec) r hrec))]
+       (mat/mul (:attenuation scat) (color (:scattered scat) world (dec depth)))
+       (vec3 0.0 0.0 0.0)) ; if depth too deep, just black
+     ;; else miss, return sky gradient
+     (let [uy (mat/mget (mat/normalise (:direction r)) 1)
+           t (* 0.5 (+ uy 1.0))]
+       (mat/lerp (vec3 1.0 1.0 1.0) 
+                 (vec3 0.5 0.7 1.0)
+                 t)))))
+
+(defn pixel
+  "compute color for a pixel up to an optional recursion depth"
+  ([i j nx ny ns camera world] (pixel i j nx ny ns camera world 50))
+  ([i j nx ny ns camera world depth]
+   (->> 
+    (repeatedly ns #(vector (/ (+ (float i) (rand)) nx)
+                            (/ (+ (float j) (rand)) ny)))
+    (map (fn [[u v]] (color (get-ray camera u v) world depth)))
+    (reduce mat/add)
+    (mat/mul (/ 1.0 ns))
+    (mat/sqrt)
+    (mat/mul 255.99)
+    (mat/emap int)
+    (seq))))
+
+(defn tiled-coords
+  [width height chunk-size]
+  "lazy sequence describing the image as tiles [{:pct pct, :chunk ([i j]...)}, ...]"
+  (let [coords (for [j (range height) i (range width)] [i j])
+        chunks (Math/ceil (/ (double (* width height)) chunk-size))
+        pcts   (map #(/ (inc %) chunks) (range (inc chunks)))]
+    ;; above we computed the (i,j) pairs as a lazy sequence
+    ;; below we are partitioning into chunks
+    ;; and merging the percent completion for progress reporting
+    (map #(hash-map :chunk %1 :pct %2)
+         (partition chunk-size chunk-size [] coords)
+         pcts)))
 
 (defn -main
   [& [name ix iy is]]
@@ -48,20 +77,17 @@
                                       0.0
                                       1.0)
         world (make-bvh (make-random-scene 11 true) 0.0 1.0)]
-    (doseq [j (range ny)
-            i (range nx)]
-      (let [[ir ig ib]
-            (->> 
-             (repeatedly ns #(vector (/ (+ (float i) (rand)) nx)
-                                     (/ (+ (float j) (rand)) ny)))
-             (pmap (fn [[u v]] (color (get-ray camera u v) world 0)))
-             (reduce mat/add)
-             (mat/mul (/ 1.0 ns))
-             (mat/sqrt)
-             (mat/mul 255.99)
-             (mat/emap int)
-             (seq))]    ; needed because vectorz/vector can't be destructured
-        (set-pixel image i (- (dec ny) j) (rgb-from-components ir ig ib))
-        (if (= i (dec nx)) (show-progress image j filename tstart))))
+
+    ;; render in parallel w/ chunks determined by tiled-coords
+    (dorun 
+     (pmap
+      (fn [{:keys [pct chunk]}]
+        (doseq [[i j] chunk]
+          (let [[ir ig ib] (pixel i j nx ny ns camera world)]
+            (set-pixel image i (- (dec ny) j)
+                       (rgb-from-components ir ig ib))))
+        (show-progress image pct filename tstart))
+      (tiled-coords nx ny 32)))
+
     (save image filename)
     (println "wrote" filename)))
