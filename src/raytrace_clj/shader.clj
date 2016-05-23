@@ -1,5 +1,6 @@
 (ns raytrace-clj.shader
   (:require [clojure.core.matrix :as mat]
+            [raytrace-clj.texture :refer :all]
             [raytrace-clj.util :refer :all]))
 
 (defn reflect
@@ -26,7 +27,7 @@
   (scatter [this ray-in {:keys [t p normal material]}]
     (let [target (mat/add p normal (rand-in-unit-sphere))]
       {:scattered (ray p (mat/sub target p) (:time ray-in))
-       :attenuation albedo})))
+       :attenuation (sample albedo 0 0 p)})))
 
 (defrecord metal [albedo fuzz]
   shader
@@ -39,7 +40,7 @@
                          (:time ray-in))]
       (if (> (mat/dot (:direction scattered) normal) 0)
         {:scattered scattered
-         :attenuation albedo}))))
+         :attenuation (sample albedo 0 0 p)}))))
 
 (defn schlick
   "polynomial approximation of glass reflectivity"
