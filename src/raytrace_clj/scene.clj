@@ -1,7 +1,8 @@
 (ns raytrace-clj.scene
   (:require [clojure.core.matrix :as mat]
             [raytrace-clj.util :refer [vec3]]
-            [raytrace-clj.texture :refer [->constant-texture ->checkerboard-texture]]
+            [raytrace-clj.texture
+             :refer [->constant-texture ->checkerboard-texture]]
             [raytrace-clj.shader :refer [->lambertian ->metal ->dielectric]]
             [raytrace-clj.hitable :refer [->sphere ->moving-sphere]]))
 
@@ -23,8 +24,8 @@
   (concat
    ;; first create the hero objects
    (list
-    (->sphere (vec3 0 -1000 0) 1000 
-              (->lambertian 
+    (->sphere (vec3 0 -1000 0) 1000
+              (->lambertian
                (->checkerboard-texture
                 (->constant-texture (vec3 0.2 0.3 0.1))
                 (->constant-texture (vec3 0.9 0.9 0.9))
@@ -32,7 +33,7 @@
     (->sphere (vec3  0 1 0) 1
               (->dielectric 1.5))
     (->sphere (vec3 -4 1 0) 1
-              (->lambertian 
+              (->lambertian
                (->constant-texture (vec3 0.4 0.2 0.1))))
     (->sphere (vec3  4 1 0) 1
               (->metal
@@ -44,30 +45,30 @@
                             0.2
                             (+ b (* 0.9 (rand))))
                choose-mat (rand)]
-         :when (> (mat/length (mat/sub center (vec3 4 0.2 0))) 0.9)]
+         :when (> (mat/magnitude (mat/sub center (vec3 4 0.2 0))) 0.9)]
      (cond
        ;; 80% are diffuse
        (< choose-mat 0.8)
        (if moving
-         (->moving-sphere center 0.0 
+         (->moving-sphere center 0.0
                           (mat/add center (vec3 0 (* 0.5 (rand)) 0)) 1.0
                           0.2
                           (->lambertian
                            (->constant-texture (vec3 (* (rand) (rand))
                                                      (* (rand) (rand))
                                                      (* (rand) (rand))))))
-         (->sphere center 0.2 
+         (->sphere center 0.2
                    (->lambertian
                     (->constant-texture (vec3 (* (rand) (rand))
                                               (* (rand) (rand))
                                               (* (rand) (rand)))))))
        ;; 15% are metal
        (< choose-mat 0.95)
-       (->sphere center 0.2 
-                 (->metal 
-                  (->constant-texture (vec3 (* 0.5 (+ 1 (rand)))
-                                            (* 0.5 (+ 1 (rand)))
-                                            (* 0.5 (+ 1 (rand)))))
+       (->sphere center 0.2
+                 (->metal
+                  (->constant-texture (vec3 (* 0.5 (inc (rand)))
+                                            (* 0.5 (inc (rand)))
+                                            (* 0.5 (inc (rand)))))
                   (* 0.5 (rand))))
        :else ; the last 5% are glass
        (->sphere center 0.2 (->dielectric 1.5))))))

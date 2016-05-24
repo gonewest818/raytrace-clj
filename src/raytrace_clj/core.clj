@@ -18,35 +18,36 @@
   ([r world depth]
    (if-let [hrec (hit? world r 0.001 Float/MAX_VALUE)]
      ;; hit, return scattered ray unless recursion depth too deep
-     (if-let [scat (and (> depth 0) 
+     (if-let [scat (and (pos? depth)
                         (scatter (:material hrec) r hrec))]
        (mat/mul (:attenuation scat) (color (:scattered scat) world (dec depth)))
        (vec3 0.0 0.0 0.0)) ; if depth too deep, just black
      ;; else miss, return sky gradient
      (let [uy (mat/mget (mat/normalise (:direction r)) 1)
            t (* 0.5 (+ uy 1.0))]
-       (mat/lerp (vec3 1.0 1.0 1.0) 
+       (mat/lerp (vec3 1.0 1.0 1.0)
                  (vec3 0.5 0.7 1.0)
                  t)))))
 
 (defn pixel
   "compute color for a pixel up to an optional recursion depth"
-  ([i j nx ny ns camera world] (pixel i j nx ny ns camera world 50))
-  ([i j nx ny ns camera world depth]
-   (->> 
-    (repeatedly ns #(vector (/ (+ (float i) (rand)) nx)
+  ([i j nx ny nr camera world] (pixel i j nx ny nr camera world 50))
+  ([i j nx ny nr camera world depth]
+   (->>
+    (repeatedly nr #(vector (/ (+ (float i) (rand)) nx)
                             (/ (+ (float j) (rand)) ny)))
     (map (fn [[u v]] (color (get-ray camera u v) world depth)))
     (reduce mat/add)
-    (mat/mul (/ 1.0 ns))
+    (mat/mul (/ 1.0 nr))
     (mat/sqrt)
     (mat/mul 255.99)
     (mat/emap int)
     (seq))))
 
 (defn tiled-coords
+  "lazy sequence describing image as tiles, where each tile
+  consists of a hash-map {:pct pct, :chunk ([i1 j1] [i2 j2] ...)}"
   [width height chunk-size]
-  "lazy sequence describing the image as tiles [{:pct pct, :chunk ([i j]...)}, ...]"
   (let [coords (for [j (range height) i (range width)] [i j])
         chunks (Math/ceil (/ (double (* width height)) chunk-size))
         pcts   (map #(/ (inc %) chunks) (range (inc chunks)))]
@@ -58,12 +59,13 @@
          pcts)))
 
 (defn -main
-  [& [name ix iy is]]
+  [& [name ix iy is win]]
   (let [tstart (System/currentTimeMillis)
-        filename (if name name "render.png")
+        filename (or name "render.png")
         nx (if ix (Integer/parseUnsignedInt ix) 200)
         ny (if iy (Integer/parseUnsignedInt iy) 100)
-        ns (if is (Integer/parseUnsignedInt is) 100)
+        nr (if is (Integer/parseUnsignedInt is) 100)
+        window? (or (= win "true") (= win "win"))
         image (new-image nx ny)
         lookfrom (vec3 13 2 3)
         lookat (vec3 0 0 0)
@@ -76,19 +78,22 @@
                                       10.0
                                       0.0
                                       1.0)
-        world (make-bvh (make-two-spheres) 0.0 1.0)
-        ;; world (make-bvh (make-random-scene 11 true) 0.0 1.0)
+        ;world (make-bvh (make-two-spheres) 0.0 1.0)
+        world (make-bvh (make-random-scene 11 true) 0.0 1.0)
         ]
 
+    ;; pre-open display window before spawning threads
+    (show-progress image 0 filename tstart window?)
+
     ;; render in parallel w/ chunks determined by tiled-coords
-    (dorun 
+    (dorun
      (pmap
       (fn [{:keys [pct chunk]}]
         (doseq [[i j] chunk]
-          (let [[ir ig ib] (pixel i j nx ny ns camera world)]
+          (let [[ir ig ib] (pixel i j nx ny nr camera world)]
             (set-pixel image i (- (dec ny) j)
                        (rgb-from-components ir ig ib))))
-        (show-progress image pct filename tstart))
+        (show-progress image pct filename tstart window?))
       (tiled-coords nx ny 32)))
 
     (save image filename)

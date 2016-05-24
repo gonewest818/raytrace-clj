@@ -14,7 +14,7 @@
   (let [uv (mat/normalise v)
         dt (mat/dot uv n)
         discriminant (- 1.0 (* ni-over-nt ni-over-nt (- 1 (* dt dt))))]
-    (if (> discriminant 0)
+    (if (pos? discriminant)
       (mat/sub (mat/mul ni-over-nt
                         (mat/sub uv (mat/mul n dt)))
                (mat/mul n (Math/sqrt discriminant))))))
@@ -38,7 +38,7 @@
                                   (mat/mul fuzz
                                            (rand-in-unit-sphere)))
                          (:time ray-in))]
-      (if (> (mat/dot (:direction scattered) normal) 0)
+      (if (pos? (mat/dot (:direction scattered) normal))
         {:scattered scattered
          :attenuation (sample albedo 0 0 p)}))))
 
@@ -55,7 +55,7 @@
     (let [ray-direction (:direction ray-in)
           ray-dot-n     (mat/dot ray-direction normal)
           [outward-normal ni-over-nt cosine]
-          (if (> ray-dot-n 0)
+          (if (pos? ray-dot-n)
             [(mat/negate normal)        ; outward-normal
              ri                         ; ni-over-nt
              (* ri (/ ray-dot-n         ; cosine

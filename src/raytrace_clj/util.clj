@@ -8,8 +8,8 @@
 
 (defn ray
   "simple model for a ray (note: direction is not normalized))"
-  [origin direction time]
-  {:origin origin :direction direction :time time})
+  [origin direction t]
+  {:origin origin :direction direction :time t})
 
 (defn point-at-parameter
   "evaluate parameterized ray at position t"
@@ -17,8 +17,9 @@
   (mat/add (:origin ray)
            (mat/mul (:direction ray) t)))
 
-(defn make-seeded-prng [seed]
+(defn make-seeded-prng
   "create a random number generator with seed"
+  [seed]
   (let [gen (java.util.Random. seed)]
     (fn [] (.nextDouble gen))))
 
@@ -27,26 +28,24 @@
 (defn rand-in-unit-disk
   "randomly choose point within the unit disk"
   []
-  (defn square [] 
-    (vec3 (- (* 2.0 (rand)) 1.0) 
-          (- (* 2.0 (rand)) 1.0)
-          0))
-  (loop [p (square)]
-    (if (>= (mat/dot p p) 1.0) 
-      (recur (square))
-      p)))
+  (let [square (fn [] (vec3 (- (* 2.0 (rand)) 1.0)
+                            (- (* 2.0 (rand)) 1.0)
+                            0))]
+    (loop [p (square)]
+      (if (>= (mat/dot p p) 1.0)
+        (recur (square))
+        p))))
 
 (defn rand-in-unit-sphere
   "randomly choose point within the unit sphere"
   []
-  (defn cube [] 
-    (vec3 (- (* 2.0 (rand)) 1.0) 
-          (- (* 2.0 (rand)) 1.0)
-          (- (* 2.0 (rand)) 1.0)))
-  (loop [p (cube)]
-    (if (>= (mat/dot p p) 1.0) 
-      (recur (cube))
-      p)))
+  (let [cube (fn [] (vec3 (- (* 2.0 (rand)) 1.0)
+                          (- (* 2.0 (rand)) 1.0)
+                          (- (* 2.0 (rand)) 1.0)))]
+    (loop [p (cube)]
+      (if (>= (mat/dot p p) 1.0)
+        (recur (cube))
+        p))))
 
 (defmacro dlet [bindings & body]
   `(let [~@(mapcat (fn [[n v]]

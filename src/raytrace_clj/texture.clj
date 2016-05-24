@@ -13,6 +13,6 @@
   texture
   (sample [this u v p]
     (let [sines (mat/ereduce * (mat/emap #(Math/sin %) (mat/mul scale p)))]
-      (if (< sines 0)
+      (if (neg? sines)
         (sample tex0 u v p)
         (sample tex1 u v p)))))

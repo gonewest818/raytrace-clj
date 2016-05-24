@@ -22,7 +22,7 @@
 
 (deftest sphere-tests
   (testing "sphere"
-    (doseq [origin gridpoints] 
+    (doseq [origin gridpoints]
       (let [radius 1.0
             s (->sphere origin radius material)]
         (is (= raytrace_clj.hitable.sphere (type s))  "constructor")
@@ -30,21 +30,21 @@
         (is (= radius (:radius s))                    "get radius")
         (is (= material (:material s))                "get material")
         (doseq [dir directions]
-          (is (hit? s (ray (mat/add origin dir) (mat/negate dir) 0.0) 
+          (is (hit? s (ray (mat/add origin dir) (mat/negate dir) 0.0)
                     0.0 Float/MAX_VALUE)              "intersect ray")
           (is (not (hit? s (ray (mat/add origin dir) dir 0.1)
                          0.0 Float/MAX_VALUE))        "non-intersecting ray"))
         (is (hit? s (ray (mat/add origin (vec3 radius radius 0))
-                         (vec3 -1 0 0) 0.0) 
+                         (vec3 -1 0 0) 0.0)
                   0.0 Float/MAX_VALUE)                "grazing ray x")
         (is (hit? s (ray (mat/add origin (vec3 radius radius 0))
-                         (vec3 0 -1 0) 0.0) 
+                         (vec3 0 -1 0) 0.0)
                   0.0 Float/MAX_VALUE)                "grazing ray y")
         (is (hit? s (ray (mat/add origin (vec3 radius 0 radius))
-                         (vec3 0 0 -1) 0.0) 
+                         (vec3 0 0 -1) 0.0)
                   0.0 Float/MAX_VALUE)                "grazing ray z")
         (is (hit? s (ray origin (vec3 1 1 1) 0.0)
-                  0.0 Float/MAX_VALUE)                "intersect ray from inside")
+                  0.0 Float/MAX_VALUE)                "ray from inside")
         (is (= (- (mat/mget origin 0) radius)
                (mat/mget (:vmin (bbox s 0 0)) 0))     "bbox min x coord")
         (is (= (- (mat/mget origin 1) radius)
@@ -60,7 +60,7 @@
 
 (deftest moving-sphere-tests
   (testing "moving-sphere"
-    (doseq [origin gridpoints] 
+    (doseq [origin gridpoints]
       (let [destination (mat/add origin (vec3 10 20 30))
             radius 1.0
             t0 0.1
@@ -73,14 +73,14 @@
         (is (= t0 (:t0 s))                            "get t0")
         (is (= t1 (:t1 s))                            "get t1")
         (is (= radius (:radius s))                    "get radius")
-        (is (= material (:material s))                "get material") 
+        (is (= material (:material s))                "get material")
         (doseq [dir directions]
           (is (hit? s (ray (mat/add origin dir) (mat/negate dir) t0)
                     0.0 Float/MAX_VALUE)              "intersect ray")
-          (is (not (hit? s (ray (mat/add origin dir) dir t0) 
+          (is (not (hit? s (ray (mat/add origin dir) dir t0)
                          0.0 Float/MAX_VALUE))        "non-intersecting ray"))
         (is (hit? s (ray origin (vec3 1 1 1) t0)
-                  0.0 Float/MAX_VALUE)                "intersect ray from inside")
+                  0.0 Float/MAX_VALUE)                "ray from inside")
         (testing "bounding box computations"
           (is (= (- (mat/mget origin 0) radius)
                  (mat/mget (:vmin (bbox s t0 t0)) 0)) "bbox min x coord")
@@ -99,7 +99,7 @@
           pb (vec3 1 2 3)]
       (is (= pa (center-at-time pa 0 pb 1 0))         "lerp t=0")
       (is (= pb (center-at-time pa 0 pb 1 1))         "lerp t=1")
-      (is (= (vec3 0.5 1.0 1.5) 
+      (is (= (vec3 0.5 1.0 1.5)
              (center-at-time pa 0 pb 1 0.5))          "lerp t=0.5"))))
 
 
@@ -155,26 +155,4 @@
                   (vec3 3 -1 2)
                   (vec3 -3 2 1)]
           spheres (map #(->sphere % 0.1 material) points)]
-      ;; (doseq [i (range 1 6)]
-      ;;   (printf "==%s==\n" i)
-      ;;   (clojure.pprint/pprint (make-bvh (take i spheres) 0 1)))
-
-      ;; #spy/p (hit? #spy/p (->sphere (vec3 4 1 0) 1.0 material)
-      ;;              #spy/p (ray (vec3 4 5 20) 
-      ;;                          (mat/sub (vec3 4 1 0) (vec3 4 5 20))
-      ;;                          0) 0 1)
-
-      ;; #spy/p (hit? #spy/p (make-bvh (list (->sphere (vec3 4 1 0) 1.0 material)) 0 1)
-      ;;              #spy/p (ray (vec3 4 5 20) 
-      ;;                          (mat/sub (vec3 4 1 0) (vec3 4 5 20))
-      ;;                          0)
-      ;;              0 1)
-
-      ;; #spy/p (hit? #spy/p (->aabb (vec3 3 0 -1) (vec3 5 2 1))
-      ;;              #spy/p (ray (vec3 4 5 20) 
-      ;;                          (mat/sub (vec3 4 1 0) (vec3 4 5 20))
-      ;;                          0)
-      ;;              0 Float/MAX_VALUE)
-
-
-)))
+      )))

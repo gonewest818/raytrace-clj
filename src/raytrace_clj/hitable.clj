@@ -3,17 +3,18 @@
             [raytrace-clj.util :refer :all]))
 
 (defprotocol hitable
-  (hit? [this r t-min t-max])
+  (hit? [this r t-min t-max]
+    "does ray intersect inside the interval [t-min, t-max]?")
   (bbox [this t0 t1]))
 
-;;; 
+;;;
 ;;; brute force search over all objects in scene
 
 (defrecord hitlist [hitable-list]
   hitable
   (hit? [this r t-min t-max]
-    (let [closest (reduce 
-                   (fn [v obj] 
+    (let [closest (reduce
+                   (fn [v obj]
                      (if-let [hrec (hit? obj r t-min (:t v))]
                        hrec
                        v))
@@ -22,13 +23,12 @@
       (if (not (:missed closest))
         closest))))
 
-;;; 
+;;;
 ;;; bounding box
 
 (defrecord aabb [vmin vmax]
   hitable
   (hit? [this r t-min t-max]
-    "intersect ray with bounding box in the interval [t-min, t-max]"
     ;; simplest way to express this is with core.matrix, but
     ;; would this be faster by doing element-wise computations
     ;; and bailing when the overlap test fails for any element?
@@ -40,13 +40,14 @@
           tmax (min (mat/minimum t1) t-max)]
       (> tmax tmin)))) ; true or false
 
-(defn make-surrounding-bbox [box0 box1]
+(defn make-surrounding-bbox
   "compute aabb that surrounds the two given aabb's"
+  [box0 box1]
   (let [small (mat/emap min (:vmin box0) (:vmin box1))
         big   (mat/emap max (:vmax box0) (:vmax box1))]
     (->aabb small big)))
 
-;;; 
+;;;
 ;;; bounding volume hierarchy
 
 (defrecord bvh-node [left right box]
@@ -62,7 +63,7 @@
 
 (defn make-bvh [hitable-list t0 t1]
   (let [axis (rand-int 3)
-        my-list (sort-by #(mat/mget (:vmin (bbox % t0 t1)) axis) 
+        my-list (sort-by #(mat/mget (:vmin (bbox % t0 t1)) axis)
                          hitable-list)
         n (count my-list)]
     (cond (= n 1) (let [L (first my-list)]
@@ -77,7 +78,7 @@
                    (->bvh-node L R (make-surrounding-bbox
                                     (bbox L t0 t1) (bbox R t0 t1)))))))
 
-;;; 
+;;;
 ;;; spheres
 
 (defrecord sphere [center radius material]
@@ -93,21 +94,21 @@
          (let [t (/ (- (- b) (Math/sqrt discriminant)) (* 2.0 a))
                p (point-at-parameter r t)]
            (if (and (> t t-min) (< t t-max))
-             {:t t :p p 
+             {:t t :p p
               :normal (mat/div (mat/sub p center) radius)
               :material material}))
          (let [t (/ (+ (- b) (Math/sqrt discriminant)) (* 2.0 a))
                p (point-at-parameter r t)]
            (if (and (> t t-min) (< t t-max))
-             {:t t :p p 
+             {:t t :p p
               :normal (mat/div (mat/sub p center) radius)
               :material material}))))))
   (bbox [this t0 t1]
-    (let [vec3r (vec3 radius radius radius)] 
+    (let [vec3r (vec3 radius radius radius)]
       (->aabb (mat/sub center vec3r)
               (mat/add center vec3r)))))
 
-(defn center-at-time 
+(defn center-at-time
   [center0 t0 center1 t1 t]
   (mat/lerp center0 center1
             (/ (- t t0) (- t1 t0))))
@@ -123,17 +124,17 @@
           c (- (mat/dot oc oc) (* radius radius))
           discriminant (- (* b b) (* 4.0 a c))]
       (if (>= discriminant 0)
-        (or 
+        (or
          (let [t (/ (- (- b) (Math/sqrt discriminant)) (* 2.0 a))
                p (point-at-parameter r t)]
            (if (and (> t t-min) (< t t-max))
-             {:t t :p p 
+             {:t t :p p
               :normal (mat/div (mat/sub p center-t) radius)
               :material material}))
          (let [t (/ (+ (- b) (Math/sqrt discriminant)) (* 2.0 a))
                p (point-at-parameter r t)]
            (if (and (> t t-min) (< t t-max))
-             {:t t :p p 
+             {:t t :p p
               :normal (mat/div (mat/sub p center-t) radius)
               :material material}))))))
   (bbox [this t-start t-end]

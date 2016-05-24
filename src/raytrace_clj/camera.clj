@@ -8,7 +8,7 @@
 (defrecord pinhole-camera [origin lleft horiz vert]
   camera
   (get-ray [this u v]
-    (ray origin 
+    (ray origin
          (mat/add lleft
                   (mat/mul u horiz)
                   (mat/mul v vert)

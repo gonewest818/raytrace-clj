@@ -12,4 +12,3 @@
     (is (thrown-with-msg? ArithmeticException
                           #"Divide by zero"
                           (/ 1 0)))))
-
