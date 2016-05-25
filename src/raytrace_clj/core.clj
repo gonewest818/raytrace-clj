@@ -4,7 +4,7 @@
             [raytrace-clj.hitable :refer :all]
             [raytrace-clj.shader :refer :all]
             [raytrace-clj.camera :refer :all]
-            [raytrace-clj.scene :refer [make-random-scene make-two-spheres]]
+            [raytrace-clj.scene :refer :all]
             [raytrace-clj.display :refer [show-progress]]
             [mikera.image.core :refer [new-image set-pixel save]]
             [mikera.image.colours :refer [rgb-from-components]])
@@ -79,7 +79,8 @@
                                       0.0
                                       1.0)
         ;world (make-bvh (make-two-spheres) 0.0 1.0)
-        world (make-bvh (make-random-scene 11 true) 0.0 1.0)
+        world (make-bvh (make-two-perlin-spheres) 0.0 1.0)
+        ;; world (make-bvh (make-random-scene 11 true) 0.0 1.0)
         ]
 
     ;; pre-open display window before spawning threads

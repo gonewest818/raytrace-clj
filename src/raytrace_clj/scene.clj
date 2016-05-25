@@ -2,7 +2,7 @@
   (:require [clojure.core.matrix :as mat]
             [raytrace-clj.util :refer [vec3]]
             [raytrace-clj.texture
-             :refer [->constant-texture ->checkerboard-texture]]
+             :refer [->constant-texture ->checkerboard-texture ->noise-texture]]
             [raytrace-clj.shader :refer [->lambertian ->metal ->dielectric]]
             [raytrace-clj.hitable :refer [->sphere ->moving-sphere]]))
 
@@ -16,6 +16,14 @@
                  10)]
     (list (->sphere (vec3 0 -10 0) 10 (->lambertian checker))
           (->sphere (vec3 0  10 0) 10 (->lambertian checker)))))
+
+
+(defn make-two-perlin-spheres
+  "two touching spheres"
+  []
+  (let [perlin (->noise-texture 4)]
+    (list (->sphere (vec3 0 -1000 0) 1000 (->lambertian perlin))
+          (->sphere (vec3 0     2 0)    2 (->lambertian perlin)))))
 
 
 (defn make-random-scene

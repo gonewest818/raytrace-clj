@@ -1,5 +1,6 @@
 (ns raytrace-clj.texture
   (:require [clojure.core.matrix :as mat]
+            [raytrace-clj.perlin :refer [noise]]
             [raytrace-clj.util :refer :all]))
 
 (defprotocol texture
@@ -16,3 +17,7 @@
       (if (neg? sines)
         (sample tex0 u v p)
         (sample tex1 u v p)))))
+
+(defrecord noise-texture [scale]
+  texture
+  (sample [this u v p] (mat/mul (vec3 1 1 1) (noise (mat/mul scale p)))))
