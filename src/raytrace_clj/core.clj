@@ -79,7 +79,8 @@
                                       0.0
                                       1.0)
         ;world (make-bvh (make-two-spheres) 0.0 1.0)
-        world (make-bvh (make-two-perlin-spheres) 0.0 1.0)
+        ;world (make-bvh (make-two-perlin-spheres) 0.0 1.0)
+        world (make-bvh (make-textured-sphere) 0.0 1.0)
         ;; world (make-bvh (make-random-scene 11 true) 0.0 1.0)
         ]
 

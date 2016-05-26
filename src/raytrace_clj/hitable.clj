@@ -81,6 +81,17 @@
 ;;;
 ;;; spheres
 
+(defn get-sphere-uv
+  "Compute uv coordinates based on spherical coords. Assumes p sits on
+  a unit sphere at the origin."
+  [p]
+  (let [[px py pz] (seq p)
+        phi        (Math/atan2 pz px)
+        theta      (Math/asin py)
+        u          (- 1.0 (/ (+ phi Math/PI) (* 2.0 Math/PI)))
+        v          (/ (+ theta (/ Math/PI 2.0)) Math/PI)]
+    [u v]))
+
 (defrecord sphere [center radius material]
   hitable
   (hit? [this r t-min t-max]
@@ -95,12 +106,14 @@
                p (point-at-parameter r t)]
            (if (and (> t t-min) (< t t-max))
              {:t t :p p
+              :uv (get-sphere-uv (mat/normalise (mat/sub p center)))
               :normal (mat/div (mat/sub p center) radius)
               :material material}))
          (let [t (/ (+ (- b) (Math/sqrt discriminant)) (* 2.0 a))
                p (point-at-parameter r t)]
            (if (and (> t t-min) (< t t-max))
              {:t t :p p
+              :uv (get-sphere-uv (mat/normalise (mat/sub p center)))
               :normal (mat/div (mat/sub p center) radius)
               :material material}))))))
   (bbox [this t0 t1]
@@ -129,12 +142,14 @@
                p (point-at-parameter r t)]
            (if (and (> t t-min) (< t t-max))
              {:t t :p p
+              :uv (get-sphere-uv (mat/normalise (mat/sub p center-t)))
               :normal (mat/div (mat/sub p center-t) radius)
               :material material}))
          (let [t (/ (+ (- b) (Math/sqrt discriminant)) (* 2.0 a))
                p (point-at-parameter r t)]
            (if (and (> t t-min) (< t t-max))
              {:t t :p p
+              :uv (get-sphere-uv (mat/normalise (mat/sub p center-t)))
               :normal (mat/div (mat/sub p center-t) radius)
               :material material}))))))
   (bbox [this t-start t-end]

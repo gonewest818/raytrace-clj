@@ -2,8 +2,12 @@
   (:require [clojure.core.matrix :as mat]
             [raytrace-clj.util :refer [vec3]]
             [raytrace-clj.texture
-             :refer [->constant-texture ->checkerboard-texture
-                     ->noise-texture ->turbulence-texture]]
+             :refer [->constant-texture
+                     ->checkerboard-texture
+                     ->noise-texture
+                     ->turbulence-texture
+                     ->marble-texture
+                     make-image-texture]]
             [raytrace-clj.shader :refer [->lambertian ->metal ->dielectric]]
             [raytrace-clj.hitable :refer [->sphere ->moving-sphere]]))
 
@@ -26,6 +30,18 @@
     (list (->sphere (vec3 0 -1000 0) 1000 (->lambertian perlin))
           (->sphere (vec3 0     2 0)    2 (->lambertian perlin)))))
 
+(defn make-textured-sphere
+  "texture mapped sphere"
+  []
+  (let [checker (->checkerboard-texture
+                 (->constant-texture (vec3 0.2 0.3 0.1))
+                 ;(->constant-texture (vec3 0.9 0.9 0.9))
+                 (->marble-texture 4 5)
+                 10)]
+    (list (->sphere (vec3 0 -10 0) 10
+                    (->lambertian checker))
+          (->sphere (vec3 0 1.0 0) 1.0 
+                    (->lambertian (make-image-texture "earth.png"))))))
 
 (defn make-random-scene
   "make a random scene"
