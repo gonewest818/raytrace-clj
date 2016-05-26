@@ -1,6 +1,6 @@
 (ns raytrace-clj.texture
   (:require [clojure.core.matrix :as mat]
-            [raytrace-clj.perlin :refer [noise]]
+            [raytrace-clj.perlin :refer [noise turbulence]]
             [raytrace-clj.util :refer :all]))
 
 (defprotocol texture
@@ -20,4 +20,13 @@
 
 (defrecord noise-texture [scale]
   texture
-  (sample [this u v p] (mat/mul (vec3 1 1 1) (noise (mat/mul scale p)))))
+  (sample [this u v p]
+    (mat/mul (vec3 1 1 1)
+             (* 0.5 (inc (noise (mat/mul scale p)))))))
+
+(defrecord turbulence-texture [scale depth]
+  texture
+  (sample [this u v p]
+    (mat/mul (vec3 1 1 1)
+             (* 0.5 (inc (Math/sin (+ (* scale (mat/mget p 2))
+                                      (* 10.0 (turbulence p depth)))))))))
