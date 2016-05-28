@@ -7,6 +7,9 @@
                      ->noise-texture
                      ->turbulence-texture
                      ->marble-texture
+                     ->flip-texture-coord-u
+                     ->flip-texture-coord-v
+                     ->image-texture
                      make-image-texture]]
             [raytrace-clj.shader :refer [->lambertian ->metal ->dielectric]]
             [raytrace-clj.hitable :refer [->sphere ->moving-sphere]]))
@@ -35,13 +38,15 @@
   []
   (let [checker (->checkerboard-texture
                  (->constant-texture (vec3 0.2 0.3 0.1))
-                 ;(->constant-texture (vec3 0.9 0.9 0.9))
-                 (->marble-texture 4 5)
+                 (->constant-texture (vec3 0.9 0.9 0.9))
+                 ;(->marble-texture 4 5)
                  10)]
     (list (->sphere (vec3 0 -10 0) 10
                     (->lambertian checker))
           (->sphere (vec3 0 1.0 0) 1.0 
-                    (->lambertian (make-image-texture "earth.png"))))))
+                    (->lambertian 
+                     (->flip-texture-coord-v
+                      (make-image-texture "earth.png")))))))
 
 (defn make-random-scene
   "make a random scene"

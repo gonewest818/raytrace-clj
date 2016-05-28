@@ -39,6 +39,16 @@
              (* 0.5 (inc (Math/sin (+ (* scale (mat/mget p 2))
                                       (* 10.0 (turbulence p depth)))))))))
 
+(defrecord flip-texture-coord-u [tex]
+  texture
+  (sample [this [u v] p]
+    (sample tex [(- 1.0 u) v] p)))
+
+(defrecord flip-texture-coord-v [tex]
+  texture
+  (sample [this [u v] p]
+    (sample tex [u (- 1.0 v)] p)))
+
 (defrecord image-texture [image]
   texture
   (sample [this [u v] p]
