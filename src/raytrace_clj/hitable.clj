@@ -159,3 +159,24 @@
       (make-surrounding-bbox
        (->aabb (mat/sub c-start vec3r) (mat/add c-start vec3r))
        (->aabb (mat/sub c-end vec3r) (mat/add c-end vec3r))))))
+
+(defrecord rect-xy [x0 y0 x1 y1 k material]
+  hitable
+  (hit? [this r t-min t-max]
+    (let [[ror-x ror-y ror-z] (seq (:origin r))
+          [rdi-x rdi-y rdi-z] (seq (:direction r))
+          t (/ (- k ror-z) rdi-z)]
+      (if (and (>= t t-min) (<= t t-max))
+        (let [x (+ ror-x (* t rdi-x))
+              y (+ ror-y (* t rdi-y))]
+          (if (and (>= x x0) (<= x x1)
+                   (>= y y0) (<= y y1))
+            {:t t
+             :p (point-at-parameter r t)
+             :uv [(/ (- x x0) (- x1 x0))
+                  (/ (- y y0) (- y1 y0))]
+             :normal (vec3 0 0 1)
+             :material material})))))
+  (bbox [this t-start t-end]
+    (->aabb (vec3 x0 y0 (- k 0.0001))
+            (vec3 x1 y1 (+ k 0.0001)))))

@@ -11,8 +11,15 @@
                      ->flip-texture-coord-v
                      ->image-texture
                      make-image-texture]]
-            [raytrace-clj.shader :refer [->lambertian ->metal ->dielectric]]
-            [raytrace-clj.hitable :refer [->sphere ->moving-sphere]]))
+            [raytrace-clj.shader 
+             :refer [->lambertian
+                     ->metal
+                     ->dielectric
+                     ->diffuse-light]]
+            [raytrace-clj.hitable
+             :refer [->sphere
+                     ->moving-sphere
+                     ->rect-xy]]))
 
 
 (defn make-two-spheres
@@ -24,7 +31,6 @@
                  10)]
     (list (->sphere (vec3 0 -10 0) 10 (->lambertian checker))
           (->sphere (vec3 0  10 0) 10 (->lambertian checker)))))
-
 
 (defn make-two-perlin-spheres
   "two touching spheres"
@@ -47,6 +53,16 @@
                     (->lambertian 
                      (->flip-texture-coord-v
                       (make-image-texture "earth.png")))))))
+
+(defn make-example-light
+  "scene with rectangular area light"
+  []
+  (let [perlin (->turbulence-texture 4 3)
+        gray (->constant-texture (vec3 0.6 0.6 0.6))]
+    (list (->sphere (vec3 0 -1000 0) 1000 (->lambertian gray))
+          (->sphere (vec3 0     2 0)    2 (->lambertian perlin))
+          (->rect-xy 3 1 5 3 -2 
+                     (->diffuse-light (->constant-texture (vec3 4 4 4)))))))
 
 (defn make-random-scene
   "make a random scene"

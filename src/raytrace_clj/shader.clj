@@ -20,14 +20,17 @@
                (mat/mul n (Math/sqrt discriminant))))))
 
 (defprotocol shader
-  (scatter [this ray-in hrec]))
+  (scatter [this ray-in hrec])
+  (emitted [this uv p])) 
 
 (defrecord lambertian [albedo]
   shader
   (scatter [this ray-in {:keys [t p uv normal material]}]
     (let [target (mat/add p normal (rand-in-unit-sphere))]
       {:scattered (ray p (mat/sub target p) (:time ray-in))
-       :attenuation (sample albedo uv p)})))
+       :attenuation (sample albedo uv p)}))
+  (emitted [this uv p]
+    (vec3 0 0 0)))
 
 (defrecord metal [albedo fuzz]
   shader
@@ -40,7 +43,9 @@
                          (:time ray-in))]
       (if (pos? (mat/dot (:direction scattered) normal))
         {:scattered scattered
-         :attenuation (sample albedo uv p)}))))
+         :attenuation (sample albedo uv p)})))
+  (emitted [this uv p]
+    (vec3 0 0 0)))
 
 (defn schlick
   "polynomial approximation of glass reflectivity"
@@ -75,4 +80,13 @@
            :attenuation (vec3 1 1 1)})
         ;; otherwise reflected
         {:scattered (ray p (reflect ray-direction normal) (:time ray-in))
-         :attenuation (vec3 1 1 1)}))))
+         :attenuation (vec3 1 1 1)})))
+  (emitted [this uv p]
+    (vec3 0 0 0)))
+
+(defrecord diffuse-light [tex]
+  shader
+  (scatter [this ray-in hrec]
+    nil)
+  (emitted [this uv p]
+    (sample tex uv p)))

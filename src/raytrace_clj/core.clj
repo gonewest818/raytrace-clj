@@ -20,14 +20,13 @@
      ;; hit, return scattered ray unless recursion depth too deep
      (if-let [scat (and (pos? depth)
                         (scatter (:material hrec) r hrec))]
-       (mat/mul (:attenuation scat) (color (:scattered scat) world (dec depth)))
-       (vec3 0.0 0.0 0.0)) ; if depth too deep, just black
-     ;; else miss, return sky gradient
-     (let [uy (mat/mget (mat/normalise (:direction r)) 1)
-           t (* 0.5 (+ uy 1.0))]
-       (mat/lerp (vec3 1.0 1.0 1.0)
-                 (vec3 0.5 0.7 1.0)
-                 t)))))
+       (mat/add (emitted (:material hrec) (:uv hrec) (:p hrec))
+                (mat/mul (:attenuation scat)
+                         (color (:scattered scat) world (dec depth))))
+       ;; if depth too deep return only emitted (if any)
+       (emitted (:material hrec) (:uv hrec) (:p hrec)))
+     ;; else miss, return black
+     (vec3 0 0 0))))
 
 (defn pixel
   "compute color for a pixel up to an optional recursion depth"
@@ -72,7 +71,7 @@
         camera (make-thin-lens-camera lookfrom
                                       lookat
                                       (vec3 0 1 0)
-                                      20
+                                      45
                                       (/ (float nx) (float ny))
                                       0.0
                                       10.0
@@ -80,7 +79,8 @@
                                       1.0)
         ;world (make-bvh (make-two-spheres) 0.0 1.0)
         ;world (make-bvh (make-two-perlin-spheres) 0.0 1.0)
-        world (make-bvh (make-textured-sphere) 0.0 1.0)
+        ;world (make-bvh (make-textured-sphere) 0.0 1.0)
+        world (make-bvh (make-example-light) 0.0 1.0)
         ;; world (make-bvh (make-random-scene 11 true) 0.0 1.0)
         ]
 
