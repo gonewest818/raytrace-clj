@@ -22,7 +22,8 @@
                      ->rect-xy
                      ->rect-yz
                      ->rect-xz
-                     ->flip-normals]]))
+                     ->flip-normals
+                     make-box]]))
 
 
 (defn make-two-spheres
@@ -84,7 +85,9 @@
           (->rect-xz 213 227 343 332 554 light)
           (->flip-normals (->rect-xz   0   0 555 555 555 white))
           (->rect-xz   0   0 555 555   0 white)
-          (->flip-normals (->rect-xy   0   0 555 555 555 white)))))
+          (->flip-normals (->rect-xy   0   0 555 555 555 white))
+          (make-box (vec3 130 0 65) (vec3 295 165 230) white)
+          (make-box (vec3 265 0 295) (vec3 430 330 460) white))))
 
 (defn make-random-scene
   "make a random scene"

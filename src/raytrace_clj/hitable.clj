@@ -72,7 +72,7 @@
                         R (second my-list)]
                     (->bvh-node L R (make-surrounding-bbox
                                      (bbox L t0 t1) (bbox R t0 t1))))
-          :else (let [sp (split-at (/ n 2) hitable-list)
+          :else (let [sp (split-at (/ n 2) my-list)
                       L  (make-bvh (first sp) t0 t1)
                       R  (make-bvh (second sp) t0 t1)]
                    (->bvh-node L R (make-surrounding-bbox
@@ -225,6 +225,31 @@
   (bbox [this t-start t-end]
     (->aabb (vec3 (- k 0.0001) y0 z0)
             (vec3 (+ k 0.0001) y1 z1))))
+
+;;;
+;;; axis-aligned box
+
+(defrecord box [p0 p1 sides]
+  hitable
+  (hit? [this r t-min t-max]
+    (hit? sides r t-min t-max))
+  (bbox [this t-start t-end]
+    (->aabb p0 p1)))
+
+(defn make-box
+  "factory to make a box record"
+  [p0 p1 material]
+  (let [[x0 y0 z0] (seq p0)
+        [x1 y1 z1] (seq p1)]
+    (->box p0 p1
+           (->hitlist
+            (list
+             (->rect-xy x0 y0 x1 y1 z1 material)
+             (->flip-normals (->rect-xy x0 y0 x1 y1 z0 material))
+             (->rect-xz x0 z0 x1 z1 y1 material)
+             (->flip-normals (->rect-xz x0 z0 x1 z1 y0 material))
+             (->rect-yz y0 z0 y1 z1 x1 material)
+             (->flip-normals (->rect-yz y0 z0 y1 z1 x0 material)))))))
 
 ;;;
 ;;; wrapper hitable to flip normals
