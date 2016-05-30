@@ -76,7 +76,7 @@
 (defn make-cornell-box
   "classic cornell box"
   []
-  (let [red   (->lambertian (->constant-texture (vec3 0.65 0.50 0.50)))
+  (let [red   (->lambertian (->constant-texture (vec3 0.65 0.05 0.05)))
         white (->lambertian (->constant-texture (vec3 0.73 0.73 0.73)))
         green (->lambertian (->constant-texture (vec3 0.12 0.45 0.15)))
         light (->diffuse-light (->constant-texture (vec3 15 15 15)))]

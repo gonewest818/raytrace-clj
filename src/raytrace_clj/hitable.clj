@@ -227,6 +227,17 @@
             (vec3 (+ k 0.0001) y1 z1))))
 
 ;;;
+;;; wrapper hitable to flip normals
+
+(defrecord flip-normals [obj]
+  hitable
+  (hit? [this r t-min t-max]
+    (if-let [hrec (hit? obj r t-min t-max)]
+      (update-in hrec [:normal] mat/negate)))
+  (bbox [this t-start t-end]
+    (bbox obj t-start t-end)))
+
+;;;
 ;;; axis-aligned box
 
 (defrecord box [p0 p1 sides]
@@ -250,14 +261,3 @@
              (->flip-normals (->rect-xz x0 z0 x1 z1 y0 material))
              (->rect-yz y0 z0 y1 z1 x1 material)
              (->flip-normals (->rect-yz y0 z0 y1 z1 x0 material)))))))
-
-;;;
-;;; wrapper hitable to flip normals
-
-(defrecord flip-normals [obj]
-  hitable
-  (hit? [this r t-min t-max]
-    (if-let [hrec (hit? obj r t-min t-max)]
-      (update-in hrec [:normal] mat/negate)))
-  (bbox [this t-start t-end]
-    (bbox obj t-start t-end)))
