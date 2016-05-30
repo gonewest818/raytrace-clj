@@ -19,7 +19,10 @@
             [raytrace-clj.hitable
              :refer [->sphere
                      ->moving-sphere
-                     ->rect-xy]]))
+                     ->rect-xy
+                     ->rect-yz
+                     ->rect-xz
+                     ->flip-normals]]))
 
 
 (defn make-two-spheres
@@ -57,12 +60,31 @@
 (defn make-example-light
   "scene with rectangular area light"
   []
-  (let [perlin (->turbulence-texture 4 3)
-        gray (->constant-texture (vec3 0.6 0.6 0.6))]
-    (list (->sphere (vec3 0 -1000 0) 1000 (->lambertian gray))
-          (->sphere (vec3 0     2 0)    2 (->lambertian perlin))
-          (->rect-xy 3 1 5 3 -2 
-                     (->diffuse-light (->constant-texture (vec3 4 4 4)))))))
+  (let [perlin (->lambertian (->turbulence-texture 4 3))
+        gray  (->lambertian (->constant-texture (vec3 0.6 0.6 0.6)))
+        light (->diffuse-light (->constant-texture (vec3 4 4 4)))]
+    (list (->sphere (vec3 0 -1000 0) 1000 gray)
+          (->sphere (vec3 0     2 0)    2 gray)
+          (->sphere (vec3 0     7 0)    2 light)
+          (->sphere (vec3 0     0 0) 1000
+                    (->diffuse-light
+                     (->constant-texture
+                      (mat/mul 0.15 (vec3 0.3 0.5 0.8)))))
+          (->rect-xy 3 1 5 3 -2 light))))
+
+(defn make-cornell-box
+  "classic cornell box"
+  []
+  (let [red   (->lambertian (->constant-texture (vec3 0.65 0.50 0.50)))
+        white (->lambertian (->constant-texture (vec3 0.73 0.73 0.73)))
+        green (->lambertian (->constant-texture (vec3 0.12 0.45 0.15)))
+        light (->diffuse-light (->constant-texture (vec3 15 15 15)))]
+    (list (->flip-normals (->rect-yz   0   0 555 555 555 green))
+          (->rect-yz   0   0 555 555   0 red)
+          (->rect-xz 213 227 343 332 554 light)
+          (->flip-normals (->rect-xz   0   0 555 555 555 white))
+          (->rect-xz   0   0 555 555   0 white)
+          (->flip-normals (->rect-xy   0   0 555 555 555 white)))))
 
 (defn make-random-scene
   "make a random scene"

@@ -160,6 +160,9 @@
        (->aabb (mat/sub c-start vec3r) (mat/add c-start vec3r))
        (->aabb (mat/sub c-end vec3r) (mat/add c-end vec3r))))))
 
+;;;
+;;; rectangles
+
 (defrecord rect-xy [x0 y0 x1 y1 k material]
   hitable
   (hit? [this r t-min t-max]
@@ -180,3 +183,56 @@
   (bbox [this t-start t-end]
     (->aabb (vec3 x0 y0 (- k 0.0001))
             (vec3 x1 y1 (+ k 0.0001)))))
+
+(defrecord rect-xz [x0 z0 x1 z1 k material]
+  hitable
+  (hit? [this r t-min t-max]
+    (let [[ror-x ror-y ror-z] (seq (:origin r))
+          [rdi-x rdi-y rdi-z] (seq (:direction r))
+          t (/ (- k ror-y) rdi-y)]
+      (if (and (>= t t-min) (<= t t-max))
+        (let [x (+ ror-x (* t rdi-x))
+              z (+ ror-z (* t rdi-z))]
+          (if (and (>= x x0) (<= x x1)
+                   (>= z z0) (<= z z1))
+            {:t t
+             :p (point-at-parameter r t)
+             :uv [(/ (- x x0) (- x1 x0))
+                  (/ (- z z0) (- z1 z0))]
+             :normal (vec3 0 1 0)
+             :material material})))))
+  (bbox [this t-start t-end]
+    (->aabb (vec3 x0 (- k 0.0001) z0)
+            (vec3 x1 (+ k 0.0001) z1))))
+
+(defrecord rect-yz [y0 z0 y1 z1 k material]
+  hitable
+  (hit? [this r t-min t-max]
+    (let [[ror-x ror-y ror-z] (seq (:origin r))
+          [rdi-x rdi-y rdi-z] (seq (:direction r))
+          t (/ (- k ror-x) rdi-x)]
+      (if (and (>= t t-min) (<= t t-max))
+        (let [y (+ ror-y (* t rdi-y))
+              z (+ ror-z (* t rdi-z))]
+          (if (and (>= y y0) (<= y y1)
+                   (>= z z0) (<= z z1))
+            {:t t
+             :p (point-at-parameter r t)
+             :uv [(/ (- y y0) (- y1 y0))
+                  (/ (- z z0) (- z1 z0))]
+             :normal (vec3 1 0 0)
+             :material material})))))
+  (bbox [this t-start t-end]
+    (->aabb (vec3 (- k 0.0001) y0 z0)
+            (vec3 (+ k 0.0001) y1 z1))))
+
+;;;
+;;; wrapper hitable to flip normals
+
+(defrecord flip-normals [obj]
+  hitable
+  (hit? [this r t-min t-max]
+    (if-let [hrec (hit? obj r t-min t-max)]
+      (update-in hrec [:normal] mat/negate)))
+  (bbox [this t-start t-end]
+    (bbox obj t-start t-end)))

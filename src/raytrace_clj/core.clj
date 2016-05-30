@@ -40,7 +40,7 @@
     (mat/mul (/ 1.0 nr))
     (mat/sqrt)
     (mat/mul 255.99)
-    (mat/emap int)
+    (mat/emap #(int (min 255.99 %)))
     (seq))))
 
 (defn tiled-coords
@@ -66,12 +66,12 @@
         nr (if is (Integer/parseUnsignedInt is) 100)
         window? (or (= win "true") (= win "win"))
         image (new-image nx ny)
-        lookfrom (vec3 13 2 3)
-        lookat (vec3 0 0 0)
+        lookfrom (vec3 278 278 -800)
+        lookat (vec3 278 278 0)
         camera (make-thin-lens-camera lookfrom
                                       lookat
                                       (vec3 0 1 0)
-                                      45
+                                      40
                                       (/ (float nx) (float ny))
                                       0.0
                                       10.0
@@ -80,7 +80,7 @@
         ;world (make-bvh (make-two-spheres) 0.0 1.0)
         ;world (make-bvh (make-two-perlin-spheres) 0.0 1.0)
         ;world (make-bvh (make-textured-sphere) 0.0 1.0)
-        world (make-bvh (make-example-light) 0.0 1.0)
+        world (make-bvh (make-cornell-box) 0.0 1.0)
         ;; world (make-bvh (make-random-scene 11 true) 0.0 1.0)
         ]
 
