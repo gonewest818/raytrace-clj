@@ -11,7 +11,7 @@
                      ->flip-texture-coord-v
                      ->image-texture
                      make-image-texture]]
-            [raytrace-clj.shader 
+            [raytrace-clj.shader
              :refer [->lambertian
                      ->metal
                      ->dielectric
@@ -55,8 +55,8 @@
                  10)]
     (list (->sphere (vec3 0 -10 0) 10
                     (->lambertian checker))
-          (->sphere (vec3 0 1.0 0) 1.0 
-                    (->lambertian 
+          (->sphere (vec3 0 1.0 0) 1.0
+                    (->lambertian
                      (->flip-texture-coord-v
                       (make-image-texture "earth.png")))))))
 

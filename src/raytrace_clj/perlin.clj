@@ -4,9 +4,8 @@
 
 
 (def random-vectors
-  ;; is a seq the best data type for performance?
-  (take 256 (repeatedly
-             #(mat/normalise (rand-in-unit-sphere)))))
+  ;; is a lazy seq the best data type for performance?
+  (repeatedly 256 #(mat/normalise (rand-in-unit-sphere))))
 
 (def perm-x
   (shuffle (range 256)))

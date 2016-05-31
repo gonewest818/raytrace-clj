@@ -21,7 +21,7 @@
 
 (defprotocol shader
   (scatter [this ray-in hrec])
-  (emitted [this uv p])) 
+  (emitted [this uv p]))
 
 (defrecord lambertian [albedo]
   shader

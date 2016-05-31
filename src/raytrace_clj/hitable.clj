@@ -166,8 +166,14 @@
 (defrecord rect-xy [x0 y0 x1 y1 k material]
   hitable
   (hit? [this r t-min t-max]
-    (let [[ror-x ror-y ror-z] (seq (:origin r))
-          [rdi-x rdi-y rdi-z] (seq (:direction r))
+    (let [ror (:origin r)
+          rdi (:direction r)
+          ror-x (mat/mget ror 0)
+          ror-y (mat/mget ror 1)
+          ror-z (mat/mget ror 2)
+          rdi-x (mat/mget rdi 0)
+          rdi-y (mat/mget rdi 1)
+          rdi-z (mat/mget rdi 2)
           t (/ (- k ror-z) rdi-z)]
       (if (and (>= t t-min) (<= t t-max))
         (let [x (+ ror-x (* t rdi-x))
@@ -187,8 +193,14 @@
 (defrecord rect-xz [x0 z0 x1 z1 k material]
   hitable
   (hit? [this r t-min t-max]
-    (let [[ror-x ror-y ror-z] (seq (:origin r))
-          [rdi-x rdi-y rdi-z] (seq (:direction r))
+    (let [ror (:origin r)
+          rdi (:direction r)
+          ror-x (mat/mget ror 0)
+          ror-y (mat/mget ror 1)
+          ror-z (mat/mget ror 2)
+          rdi-x (mat/mget rdi 0)
+          rdi-y (mat/mget rdi 1)
+          rdi-z (mat/mget rdi 2)
           t (/ (- k ror-y) rdi-y)]
       (if (and (>= t t-min) (<= t t-max))
         (let [x (+ ror-x (* t rdi-x))
@@ -208,8 +220,14 @@
 (defrecord rect-yz [y0 z0 y1 z1 k material]
   hitable
   (hit? [this r t-min t-max]
-    (let [[ror-x ror-y ror-z] (seq (:origin r))
-          [rdi-x rdi-y rdi-z] (seq (:direction r))
+    (let [ror (:origin r)
+          rdi (:direction r)
+          ror-x (mat/mget ror 0)
+          ror-y (mat/mget ror 1)
+          ror-z (mat/mget ror 2)
+          rdi-x (mat/mget rdi 0)
+          rdi-y (mat/mget rdi 1)
+          rdi-z (mat/mget rdi 2)
           t (/ (- k ror-x) rdi-x)]
       (if (and (>= t t-min) (<= t t-max))
         (let [y (+ ror-y (* t rdi-y))
@@ -257,20 +275,32 @@
 (defrecord rotate-y [obj rotated-bbox sin-theta cos-theta]
   hitable
   (hit? [this r t-min t-max]
-    (let [[ox oy oz] (seq (:origin r))
-          [dx dy dz] (seq (:direction r))
+    (let [ror (:origin r)
+          rdi (:direction r)
+          ox (mat/mget ror 0)
+          oy (mat/mget ror 1)
+          oz (mat/mget ror 2)
+          dx (mat/mget rdi 0)
+          dy (mat/mget rdi 1)
+          dz (mat/mget rdi 2)
           ;; pre-rotate the inbound ray before hit testing
           rot-o (vec3 (- (* cos-theta ox) (* sin-theta oz))
                       oy
-                      (+ (* sin-theta ox) (* cos-theta oz)))          
+                      (+ (* sin-theta ox) (* cos-theta oz)))
           rot-d (vec3 (- (* cos-theta dx) (* sin-theta dz))
                       dy
                       (+ (* sin-theta dx) (* cos-theta dz)))
           rot-r (ray rot-o rot-d (:time r))]
       ;; perform the hit test
       (if-let [hrec (hit? obj rot-r t-min t-max)]
-        (let [[px py pz] (seq (:p hrec))
-              [nx ny nz] (seq (:normal hrec))
+        (let [hp (:p hrec)
+              hn (:normal hrec)
+              px (mat/mget hp 0)
+              py (mat/mget hp 1)
+              pz (mat/mget hp 2)
+              nx (mat/mget hn 0)
+              ny (mat/mget hn 1)
+              nz (mat/mget hn 2)
               ;; ... and if hit, then post-rotate the p and normal
               rot-p (vec3 (+ (* cos-theta px) (* sin-theta pz))
                           py
