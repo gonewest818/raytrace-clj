@@ -227,7 +227,7 @@
             (vec3 (+ k 0.0001) y1 z1))))
 
 ;;;
-;;; wrapper hitable to flip normals
+;;; flip normals, as a wrapper
 
 (defrecord flip-normals [obj]
   hitable
@@ -236,6 +236,84 @@
       (update-in hrec [:normal] mat/negate)))
   (bbox [this t-start t-end]
     (bbox obj t-start t-end)))
+
+;;;
+;;; translate instance, as a wrapper
+
+(defrecord translate [obj offset]
+  hitable
+  (hit? [this r t-min t-max]
+    (let [trans-r (update-in r [:origin] #(mat/sub % offset))]
+      (if-let [hrec (hit? obj trans-r t-min t-max)]
+        (update-in hrec [:p] #(mat/add % offset)))))
+  (bbox [this t-start t-end]
+    (if-let [my-box (bbox obj t-start t-end)]
+      (->aabb (mat/add (:vmin my-box) offset)
+              (mat/add (:vmax my-box) offset)))))
+
+;;;
+;;; rotate instance, as a wrapper
+
+(defrecord rotate-y [obj rotated-bbox sin-theta cos-theta]
+  hitable
+  (hit? [this r t-min t-max]
+    (let [[ox oy oz] (seq (:origin r))
+          [dx dy dz] (seq (:direction r))
+          ;; pre-rotate the inbound ray before hit testing
+          rot-o (vec3 (- (* cos-theta ox) (* sin-theta oz))
+                      oy
+                      (+ (* sin-theta ox) (* cos-theta oz)))          
+          rot-d (vec3 (- (* cos-theta dx) (* sin-theta dz))
+                      dy
+                      (+ (* sin-theta dx) (* cos-theta dz)))
+          rot-r (ray rot-o rot-d (:time r))]
+      ;; perform the hit test
+      (if-let [hrec (hit? obj rot-r t-min t-max)]
+        (let [[px py pz] (seq (:p hrec))
+              [nx ny nz] (seq (:normal hrec))
+              ;; ... and if hit, then post-rotate the p and normal
+              rot-p (vec3 (+ (* cos-theta px) (* sin-theta pz))
+                          py
+                          (+ (- (* sin-theta px)) (* cos-theta pz)))
+              rot-n (vec3 (+ (* cos-theta nx) (* sin-theta nz))
+                          ny
+                          (+ (- (* sin-theta nx)) (* cos-theta nz)))]
+          ;; updating the hit record with the new values
+          (-> hrec
+              (assoc-in [:p] rot-p)
+              (assoc-in [:normal] rot-n))))))
+  (bbox [this t-start t-end] rotated-bbox))
+
+(defn make-rotate-y [obj theta]
+  (let [radians (* theta (/ Math/PI 180.0))
+        cos-th  (Math/cos radians)
+        sin-th  (Math/sin radians)
+        box     (bbox obj 0 1)
+        old-min (:vmin box)
+        old-max (:vmax box)
+        [new-min new-max]
+        ;; this reduces over rotated corners to find new min & max
+        (reduce #(vector (mat/emap min (nth %1 0) %2)
+                         (mat/emap max (nth %1 1) %2))
+                ;; here we seed the result of the reduce
+                (vector (vec3 Float/MAX_VALUE
+                              Float/MAX_VALUE
+                              Float/MAX_VALUE)
+                        (vec3 (- Float/MAX_VALUE)
+                              (- Float/MAX_VALUE)
+                              (- Float/MAX_VALUE)))
+                ;; this generates all 8 corners of the bbox, rotated
+                (for [x [(mat/mget old-min 0) (mat/mget old-max 0)]
+                      y [(mat/mget old-min 1) (mat/mget old-max 1)]
+                      z [(mat/mget old-min 2) (mat/mget old-max 2)]
+                      ;; ...applying the 2D rotation matrix to each corner
+                      :let [new-x (+    (* cos-th x)  (* sin-th z))
+                            new-z (+ (- (* sin-th x)) (* cos-th z))]]
+                  (vec3 new-x y new-z)))]
+    (->rotate-y obj
+                (->aabb new-min new-max)
+                sin-th
+                cos-th)))
 
 ;;;
 ;;; axis-aligned box

@@ -23,7 +23,9 @@
                      ->rect-yz
                      ->rect-xz
                      ->flip-normals
-                     make-box]]))
+                     make-box
+                     ->translate
+                     make-rotate-y]]))
 
 
 (defn make-two-spheres
@@ -81,13 +83,23 @@
         green (->lambertian (->constant-texture (vec3 0.12 0.45 0.15)))
         light (->diffuse-light (->constant-texture (vec3 15 15 15)))]
     (list (->flip-normals (->rect-yz   0   0 555 555 555 green))
-          (->rect-yz   0   0 555 555   0 red)
-          (->rect-xz 213 227 343 332 554 light)
+                          (->rect-yz   0   0 555 555   0 red)
+                          (->rect-xz 213 227 343 332 554 light)
           (->flip-normals (->rect-xz   0   0 555 555 555 white))
-          (->rect-xz   0   0 555 555   0 white)
+                          (->rect-xz   0   0 555 555   0 white)
           (->flip-normals (->rect-xy   0   0 555 555 555 white))
-          (make-box (vec3 130 0 65) (vec3 295 165 230) white)
-          (make-box (vec3 265 0 295) (vec3 430 330 460) white))))
+          (->translate (make-rotate-y
+                        (make-box (vec3 0 0 0)
+                                  (vec3 165 165 165)
+                                  white)
+                        -18.0)
+                       (vec3 130 0 65))
+          (->translate (make-rotate-y
+                        (make-box (vec3 0 0 0)
+                                  (vec3 165 330 165)
+                                  white)
+                        15.0)
+                       (vec3 265 0 295)))))
 
 (defn make-random-scene
   "make a random scene"
