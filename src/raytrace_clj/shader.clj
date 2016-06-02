@@ -90,3 +90,14 @@
     nil)
   (emitted [this uv p]
     (sample tex uv p)))
+
+(defrecord isotropic [albedo]
+  shader
+  (scatter [this ray-in hrec]
+    (let [p (:p hrec)
+          uv (:uv hrec)
+          t (:t hrec)]
+      {:scattered (ray p (rand-in-unit-sphere) t)
+       :attenuation (sample albedo uv p)}))
+  (emitted [this uv p]
+    (vec3 0 0 0)))

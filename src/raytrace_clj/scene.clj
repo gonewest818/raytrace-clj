@@ -25,7 +25,8 @@
                      ->flip-normals
                      make-box
                      ->translate
-                     make-rotate-y]]))
+                     make-rotate-y
+                     make-constant-medium]]))
 
 
 (defn make-two-spheres
@@ -81,25 +82,32 @@
   (let [red   (->lambertian (->constant-texture (vec3 0.65 0.05 0.05)))
         white (->lambertian (->constant-texture (vec3 0.73 0.73 0.73)))
         green (->lambertian (->constant-texture (vec3 0.12 0.45 0.15)))
-        light (->diffuse-light (->constant-texture (vec3 15 15 15)))]
+        light (->diffuse-light (->constant-texture (vec3 7 7 7)))]
     (list (->flip-normals (->rect-yz   0   0 555 555 555 green))
                           (->rect-yz   0   0 555 555   0 red)
-                          (->rect-xz 213 227 343 332 554 light)
+                          ;(->rect-xz 213 227 343 332 554 light)
+                          (->rect-xz 113 127 443 432 554 light)
           (->flip-normals (->rect-xz   0   0 555 555 555 white))
                           (->rect-xz   0   0 555 555   0 white)
           (->flip-normals (->rect-xy   0   0 555 555 555 white))
-          (->translate (make-rotate-y
-                        (make-box (vec3 0 0 0)
-                                  (vec3 165 165 165)
-                                  white)
-                        -18.0)
-                       (vec3 130 0 65))
-          (->translate (make-rotate-y
-                        (make-box (vec3 0 0 0)
-                                  (vec3 165 330 165)
-                                  white)
-                        15.0)
-                       (vec3 265 0 295)))))
+          (make-constant-medium
+           (->translate (make-rotate-y
+                         (make-box (vec3 0 0 0)
+                                   (vec3 165 165 165)
+                                   white)
+                         -18.0)
+                        (vec3 130 0 65))
+           0.01
+           (->constant-texture (vec3 1 1 1)))
+          (make-constant-medium
+           (->translate (make-rotate-y
+                         (make-box (vec3 0 0 0)
+                                   (vec3 165 330 165)
+                                   white)
+                         15.0)
+                        (vec3 265 0 295))
+           0.01
+           (->constant-texture (vec3 0 0 0))))))
 
 (defn make-random-scene
   "make a random scene"

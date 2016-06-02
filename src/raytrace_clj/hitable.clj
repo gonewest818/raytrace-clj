@@ -1,5 +1,6 @@
 (ns raytrace-clj.hitable
   (:require [clojure.core.matrix :as mat]
+            [raytrace-clj.shader :refer [->isotropic]]
             [raytrace-clj.util :refer :all]))
 
 (defprotocol hitable
@@ -369,3 +370,32 @@
              (->flip-normals (->rect-xz x0 z0 x1 z1 y0 material))
              (->rect-yz y0 z0 y1 z1 x1 material)
              (->flip-normals (->rect-yz y0 z0 y1 z1 x0 material)))))))
+
+;;;
+;;; constant-medium, i.e. fog or other participating media
+
+(defrecord constant-medium [boundary density phase-fn]
+  hitable
+  (hit? [this r t-min t-max]
+    (if-let [hrec1 (hit? boundary r (- Float/MAX_VALUE) Float/MAX_VALUE)]
+      (if-let [hrec2 (hit? boundary r (+ (:t hrec1) 0.0001) Float/MAX_VALUE)]
+        (let [t1 (:t hrec1)
+              t2 (:t hrec2)
+              t1 (if (< t1 t-min) t-min t1)
+              t2 (if (> t2 t-max) t-max t2)]
+          (if (< t1 t2)
+            (let [t1 (if (< t1 0) 0 t1)
+                  mag-r-dir (mat/magnitude (:direction r))
+                  dist-in-boundary (* (- t2 t1) mag-r-dir)
+                  hit-distance (- (/ (Math/log (rand)) density))]
+              (if (< hit-distance dist-in-boundary)
+                {:t (+ t1 (/ hit-distance mag-r-dir))
+                 :p (point-at-parameter r t1)
+                 :normal (vec3 1 0 0)
+                 :material phase-fn})))))))
+  (bbox [this t-start t-end]
+    (bbox boundary t-start t-end)))
+
+(defn make-constant-medium
+  [boundary density albedo]
+  (->constant-medium boundary density (->isotropic albedo)))
