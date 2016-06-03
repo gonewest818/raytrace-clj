@@ -33,8 +33,10 @@
     ;; simplest way to express this is with core.matrix, but
     ;; would this be faster by doing element-wise computations
     ;; and bailing when the overlap test fails for any element?
-    (let [m (mat/div (mat/sub vmin (:origin r)) (:direction r))
-          n (mat/div (mat/sub vmax (:origin r)) (:direction r))
+    (let [org (:origin r)
+          dir (:direction r)
+          m (mat/div (mat/sub vmin org) dir)
+          n (mat/div (mat/sub vmax org) dir)
           t0 (mat/emap min m n)
           t1 (mat/emap max m n)
           tmin (max (mat/maximum t0) t-min)
@@ -389,10 +391,12 @@
                   dist-in-boundary (* (- t2 t1) mag-r-dir)
                   hit-distance (- (/ (Math/log (rand)) density))]
               (if (< hit-distance dist-in-boundary)
-                {:t (+ t1 (/ hit-distance mag-r-dir))
-                 :p (point-at-parameter r t1)
-                 :normal (vec3 1 0 0)
-                 :material phase-fn})))))))
+                (let [new-t (+ t1 (/ hit-distance mag-r-dir))]
+                  {:t new-t
+                   :p (point-at-parameter r new-t)
+                   :uv [0 0]            ; arbitrary
+                   :normal (vec3 1 0 0) ; arbitrary
+                   :material phase-fn}))))))))
   (bbox [this t-start t-end]
     (bbox boundary t-start t-end)))
 

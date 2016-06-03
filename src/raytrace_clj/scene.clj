@@ -26,7 +26,8 @@
                      make-box
                      ->translate
                      make-rotate-y
-                     make-constant-medium]]))
+                     make-constant-medium
+                     make-bvh]]))
 
 
 (defn make-two-spheres
@@ -61,6 +62,26 @@
                      (->flip-texture-coord-v
                       (make-image-texture "earth.png")))))))
 
+(defn make-subsurface-sphere
+  "subsurface reflection sphere"
+  []
+  (let [checker (->checkerboard-texture
+                 (->constant-texture (vec3 0.2 0.3 0.1))
+                 (->constant-texture (vec3 0.9 0.9 0.9))
+                 ;(->marble-texture 4 5)
+                 10)]
+    (list (->sphere (vec3 0 -10 0) 10
+                    (->lambertian checker))
+          (->sphere (vec3 0 0 0) 1000
+                    (->diffuse-light
+                     (->constant-texture
+                      (mat/mul 2.0 (vec3 0.15 0.25 0.35)))))
+          (make-constant-medium
+           (->sphere (vec3 0 1.0 0) 1.0
+                     (->dielectric 1.5))
+           0.9
+           (->constant-texture (vec3 0.2 0.4 0.9))))))
+
 (defn make-example-light
   "scene with rectangular area light"
   []
@@ -75,6 +96,60 @@
                      (->constant-texture
                       (mat/mul 0.15 (vec3 0.3 0.5 0.8)))))
           (->rect-xy 3 1 5 3 -2 light))))
+
+(defn make-final
+  "book 2 final example"
+  []
+  (let [white  (->lambertian (->constant-texture (vec3 0.73 0.73 0.73)))
+        ground (->lambertian (->constant-texture (vec3 0.48 0.83 0.53)))
+        orange (->lambertian (->constant-texture (vec3 0.7 0.3 0.1)))
+        light  (->diffuse-light (->constant-texture (vec3 7 7 7)))
+        glass  (->dielectric 1.5)
+        metal  (->metal (->constant-texture (vec3 0.8 0.8 0.9)) 10)
+        bndry  (->sphere (vec3 360 150 145) 70 glass)
+        earth  (->lambertian (->flip-texture-coord-v
+                              (make-image-texture "earth.png")))
+        marble (->lambertian (->noise-texture 0.1))
+        nb 20
+        ns 1000]
+    (list
+     ;; ground is a grid of boxes
+     (make-bvh
+      (for [i (range nb)
+            j (range nb)]
+        (let [w 100
+              p0 (vec3 (+ -1000 (* i w)) 0 (+ -1000 (* j w)))
+              p1 (mat/add p0 (vec3 w (* 100 (+ (rand) 0.01)) w))]
+          (make-box p0 p1 ground)))
+      0.0 1.0)
+     ;; overhead light
+     (->rect-xz 123 147 423 412 554 light)
+     ;; orange moving sphere
+     (->moving-sphere (vec3 400 400 200) 0 (vec3 430 400 200) 1 50 orange)
+     ;; glass sphere
+     (->sphere (vec3 260 150 45) 50 glass)
+     ;; metal sphere
+     (->sphere (vec3 0 150 145) 50 metal)
+     ;; glass with subsurface scattering
+     bndry
+     (make-constant-medium bndry 0.2 (->constant-texture (vec3 0.2 0.4 0.9)))
+     ;; overall haze
+     (make-constant-medium (->sphere (vec3 0 0 0) 5000 glass)
+                           0.0001
+                           (->constant-texture (vec3 1 1 1)))
+     ;; earth
+     (->sphere (vec3 400 200 400) 100 earth)
+     ;; marble
+     (->sphere (vec3 220 280 300) 80 marble)
+     ;; spheres packed in a box
+     (->translate
+      (make-rotate-y
+       (make-bvh
+        (for [n (range ns)]
+          (->sphere (mat/mul 165.0 (vec3 (rand) (rand) (rand))) 10 white))
+        0.0 1.0)
+       15)
+      (vec3 -100 270 395)))))
 
 (defn make-cornell-box
   "classic cornell box"
