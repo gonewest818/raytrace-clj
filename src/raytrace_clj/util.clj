@@ -1,10 +1,19 @@
 (ns raytrace-clj.util
   (:require [clojure.core.matrix :as mat]))
 
-(defn vec3
+(defn vec3-old
   "convenience function to make 3d vectors"
   [u v w]
   (mat/matrix [u v w]))
+
+;;; macro seems dramatically faster
+(defmacro vec3 [a b c]
+  (let [tmp (gensym 'vec3)]
+    `(let [~tmp (mat/new-vector 3)]
+       (mat/mset! ~tmp 0 ~a)
+       (mat/mset! ~tmp 1 ~b)
+       (mat/mset! ~tmp 2 ~c)
+       ~tmp)))
 
 (defn ray
   "simple model for a ray (note: direction is not normalized))"
@@ -14,8 +23,8 @@
 (defn point-at-parameter
   "evaluate parameterized ray at position t"
   [ray t]
-  (mat/add (:origin ray)
-           (mat/mul (:direction ray) t)))
+  (mat/add! (mat/mul! (mat/clone (:direction ray)) t)
+            (:origin ray)))
 
 (defn make-seeded-prng
   "create a random number generator with seed"

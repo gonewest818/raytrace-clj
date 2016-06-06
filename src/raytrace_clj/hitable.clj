@@ -1,6 +1,7 @@
 (ns raytrace-clj.hitable
   (:require [clojure.core.matrix :as mat]
             [raytrace-clj.shader :refer [->isotropic]]
+            [raytrace-clj.metrics :as metric]
             [raytrace-clj.util :refer :all]))
 
 (defprotocol hitable
@@ -30,18 +31,48 @@
 (defrecord aabb [vmin vmax]
   hitable
   (hit? [this r t-min t-max]
-    ;; simplest way to express this is with core.matrix, but
-    ;; would this be faster by doing element-wise computations
-    ;; and bailing when the overlap test fails for any element?
+    (metric/increment! metric/count-aabb)
     (let [org (:origin r)
           dir (:direction r)
-          m (mat/div (mat/sub vmin org) dir)
-          n (mat/div (mat/sub vmax org) dir)
-          t0 (mat/emap min m n)
-          t1 (mat/emap max m n)
+          m (mat/div! (mat/sub! (mat/clone vmin) org) dir)
+          n (mat/div! (mat/sub! (mat/clone vmax) org) dir)
+          t0 (mat/emap! min (mat/clone m) n)
+          t1 (mat/emap! max m n)
           tmin (max (mat/maximum t0) t-min)
           tmax (min (mat/minimum t1) t-max)]
       (> tmax tmin)))) ; true or false
+
+(defrecord aabb-unrolled [vmin vmax]
+  hitable
+  (hit? [this r t-min t-max]
+    (metric/increment! metric/count-aabb)
+    (let [org (:origin r)
+          dir (:direction r)]
+      (loop [tmin t-min
+             tmax t-max
+             index 0]
+        (let [o (mat/mget org index)
+              d (mat/mget dir index)
+              v1 (mat/mget vmin index)
+              v2 (mat/mget vmax index)
+              m (/ (- v1 o) d)
+              n (/ (- v2 o) d)
+              t0 (min m n)
+              t1 (max m n)]
+          (if (< index 2)
+            (recur (max t0 tmin)
+                   (min t1 tmax)
+                   (inc index))
+            (> (min t1 tmax) (max t0 tmin))))))))
+
+; test
+(comment (let [r (ray (vec3 -10 -10 -10)
+                      (vec3 1 1 1)
+                      0)
+               b (->aabb (vec3 1 1 1)
+                         (vec3 2 2 2))]
+           (time (dotimes [n 1000000]
+                   (hit? b r 0 Float/MAX_VALUE)))) )
 
 (defn make-surrounding-bbox
   "compute aabb that surrounds the two given aabb's"
@@ -88,36 +119,42 @@
   "Compute uv coordinates based on spherical coords. Assumes p sits on
   a unit sphere at the origin."
   [p]
-  (let [[px py pz] (seq p)
-        phi        (Math/atan2 pz px)
-        theta      (Math/asin py)
-        u          (- 1.0 (/ (+ phi Math/PI) (* 2.0 Math/PI)))
-        v          (/ (+ theta (/ Math/PI 2.0)) Math/PI)]
+  (let [px    (mat/mget p 0)
+        py    (mat/mget p 1)
+        pz    (mat/mget p 2)
+        phi   (Math/atan2 pz px)
+        theta (Math/asin py)
+        u     (- 1.0 (/ (+ phi Math/PI) (* 2.0 Math/PI)))
+        v     (/ (+ theta (/ Math/PI 2.0)) Math/PI)]
     [u v]))
 
 (defrecord sphere [center radius material]
   hitable
   (hit? [this r t-min t-max]
-    (let [oc (mat/sub (:origin r) center)
-          a (mat/dot (:direction r) (:direction r))
-          b (mat/mul 2.0 (mat/dot oc (:direction r)))
+    (let [org (:origin r)
+          dir (:direction r)
+          oc (mat/sub org center)
+          a (mat/dot dir dir)
+          b (* 2.0 (mat/dot oc dir))
           c (- (mat/dot oc oc) (* radius radius))
           discriminant (- (* b b) (* 4.0 a c))]
       (if (>= discriminant 0)
         (or
          (let [t (/ (- (- b) (Math/sqrt discriminant)) (* 2.0 a))
-               p (point-at-parameter r t)]
+               p (point-at-parameter r t)
+               cpn (mat/normalise (mat/sub p center))]
            (if (and (> t t-min) (< t t-max))
              {:t t :p p
-              :uv (get-sphere-uv (mat/normalise (mat/sub p center)))
-              :normal (mat/div (mat/sub p center) radius)
+              :uv (get-sphere-uv cpn)
+              :normal cpn
               :material material}))
          (let [t (/ (+ (- b) (Math/sqrt discriminant)) (* 2.0 a))
-               p (point-at-parameter r t)]
+               p (point-at-parameter r t)
+               cpn (mat/normalise (mat/sub p center))]
            (if (and (> t t-min) (< t t-max))
              {:t t :p p
-              :uv (get-sphere-uv (mat/normalise (mat/sub p center)))
-              :normal (mat/div (mat/sub p center) radius)
+              :uv (get-sphere-uv cpn)
+              :normal cpn
               :material material}))))))
   (bbox [this t0 t1]
     (let [vec3r (vec3 radius radius radius)]
@@ -134,26 +171,30 @@
   hitable
   (hit? [this r t-min t-max]
     (let [center-t (center-at-time center0 t0 center1 t1 (:time r))
-          oc (mat/sub (:origin r) center-t)
-          a (mat/dot (:direction r) (:direction r))
-          b (mat/mul 2.0 (mat/dot oc (:direction r)))
+          org (:origin r)
+          dir (:direction r)
+          oc (mat/sub org center-t)
+          a (mat/dot dir dir)
+          b (* 2.0 (mat/dot oc dir))
           c (- (mat/dot oc oc) (* radius radius))
           discriminant (- (* b b) (* 4.0 a c))]
       (if (>= discriminant 0)
         (or
          (let [t (/ (- (- b) (Math/sqrt discriminant)) (* 2.0 a))
-               p (point-at-parameter r t)]
+               p (point-at-parameter r t)
+               cpn (mat/normalise (mat/sub p center-t))]
            (if (and (> t t-min) (< t t-max))
              {:t t :p p
-              :uv (get-sphere-uv (mat/normalise (mat/sub p center-t)))
-              :normal (mat/div (mat/sub p center-t) radius)
+              :uv (get-sphere-uv cpn)
+              :normal cpn
               :material material}))
          (let [t (/ (+ (- b) (Math/sqrt discriminant)) (* 2.0 a))
-               p (point-at-parameter r t)]
+               p (point-at-parameter r t)
+               cpn (mat/normalise (mat/sub p center-t))]
            (if (and (> t t-min) (< t t-max))
              {:t t :p p
-              :uv (get-sphere-uv (mat/normalise (mat/sub p center-t)))
-              :normal (mat/div (mat/sub p center-t) radius)
+              :uv (get-sphere-uv cpn)
+              :normal cpn
               :material material}))))))
   (bbox [this t-start t-end]
     (let [c-start (center-at-time center0 t0 center1 t1 t-start)
@@ -246,6 +287,13 @@
   (bbox [this t-start t-end]
     (->aabb (vec3 (- k 0.0001) y0 z0)
             (vec3 (+ k 0.0001) y1 z1))))
+
+(comment (let [b (->rect-yz 0 0 2 2 1 nil)
+               r (ray (vec3 -10 1 1) (vec3 1 0 0) 0)]
+           (time
+            (dotimes [n 1000000]
+              (hit? b r 0 Float/MAX_VALUE)))) )
+
 
 ;;;
 ;;; flip normals, as a wrapper

@@ -6,6 +6,7 @@
             [raytrace-clj.camera :refer :all]
             [raytrace-clj.scene :refer :all]
             [raytrace-clj.display :refer [show-progress]]
+            [raytrace-clj.metrics :as metric]
             [mikera.image.core :refer [new-image set-pixel save]]
             [mikera.image.colours :refer [rgb-from-components]])
   (:gen-class))
@@ -16,6 +17,7 @@
   "compute color for ray up to an optional recursion depth"
   ([r world] (color r world 50))
   ([r world depth]
+   (metric/increment! metric/count-rays) ; collect total rays
    (if-let [hrec (hit? world r 0.001 Float/MAX_VALUE)]
      ;; hit, return scattered ray unless recursion depth too deep
      (if-let [scat (and (pos? depth)
@@ -32,6 +34,7 @@
   "compute color for a pixel up to an optional recursion depth"
   ([i j nx ny nr camera world] (pixel i j nx ny nr camera world 50))
   ([i j nx ny nr camera world depth]
+   (metric/increment! metric/count-pixels)
    (->>
     (repeatedly nr #(vector (/ (+ (float i) (rand)) nx)
                             (/ (+ (float j) (rand)) ny)))
@@ -89,6 +92,9 @@
         ;world (make-bvh (make-random-scene 11 true) 0.0 1.0)
         ]
 
+    ;; begin logging
+    (metric/start)
+
     ;; pre-open display window before spawning threads
     (show-progress image 0 filename tstart window?)
 
@@ -103,5 +109,7 @@
         (show-progress image pct filename tstart window?))
       (tiled-coords nx ny 32)))
 
+    ;; stop logging and cleanup
+    (metric/stop)
     (save image filename)
     (println "wrote" filename)))
