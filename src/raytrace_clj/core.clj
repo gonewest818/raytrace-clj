@@ -8,7 +8,8 @@
             [raytrace-clj.display :refer [show-progress]]
             [raytrace-clj.metrics :as metric]
             [mikera.image.core :refer [new-image set-pixel save]]
-            [mikera.image.colours :refer [rgb-from-components]])
+            [mikera.image.colours :refer [rgb-from-components]]
+            [com.climate.claypoole :as cp])
   (:gen-class))
 
 (mat/set-current-implementation :vectorz)
@@ -100,7 +101,7 @@
 
     ;; render in parallel w/ chunks determined by tiled-coords
     (dorun
-     (pmap
+     (cp/upmap (cp/ncpus)
       (fn [{:keys [pct chunk]}]
         (doseq [[i j] chunk]
           (let [[ir ig ib] (pixel i j nx ny nr camera world)]
@@ -112,4 +113,5 @@
     ;; stop logging and cleanup
     (metric/stop)
     (save image filename)
-    (println "wrote" filename)))
+    (println "wrote" filename)
+    (shutdown-agents)))
