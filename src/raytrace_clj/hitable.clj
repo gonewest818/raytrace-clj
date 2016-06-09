@@ -128,7 +128,7 @@
         v     (/ (+ theta (/ Math/PI 2.0)) Math/PI)]
     [u v]))
 
-(defrecord sphere [center radius material]
+(defrecord uv-sphere [center radius material]
   hitable
   (hit? [this r t-min t-max]
     (let [org (:origin r)
@@ -161,6 +161,39 @@
       (->aabb (mat/sub center vec3r)
               (mat/add center vec3r)))))
 
+(defrecord sphere [center radius material]
+  hitable
+  (hit? [this r t-min t-max]
+    (let [org (:origin r)
+          dir (:direction r)
+          oc (mat/sub org center)
+          a (mat/dot dir dir)
+          b (* 2.0 (mat/dot oc dir))
+          c (- (mat/dot oc oc) (* radius radius))
+          discriminant (- (* b b) (* 4.0 a c))]
+      (if (>= discriminant 0)
+        (or
+         (let [t (/ (- (- b) (Math/sqrt discriminant)) (* 2.0 a))
+               p (point-at-parameter r t)
+               cpn (mat/normalise (mat/sub p center))]
+           (if (and (> t t-min) (< t t-max))
+             {:t t :p p
+              :uv [0 0]
+              :normal cpn
+              :material material}))
+         (let [t (/ (+ (- b) (Math/sqrt discriminant)) (* 2.0 a))
+               p (point-at-parameter r t)
+               cpn (mat/normalise (mat/sub p center))]
+           (if (and (> t t-min) (< t t-max))
+             {:t t :p p
+              :uv [0 0]
+              :normal cpn
+              :material material}))))))
+  (bbox [this t0 t1]
+    (let [vec3r (vec3 radius radius radius)]
+      (->aabb (mat/sub center vec3r)
+              (mat/add center vec3r)))))
+
 (defn center-at-time
   [center0 t0 center1 t1 t]
   (mat/lerp center0 center1
@@ -185,7 +218,7 @@
                cpn (mat/normalise (mat/sub p center-t))]
            (if (and (> t t-min) (< t t-max))
              {:t t :p p
-              :uv (get-sphere-uv cpn)
+              :uv [0 0]
               :normal cpn
               :material material}))
          (let [t (/ (+ (- b) (Math/sqrt discriminant)) (* 2.0 a))
@@ -193,7 +226,7 @@
                cpn (mat/normalise (mat/sub p center-t))]
            (if (and (> t t-min) (< t t-max))
              {:t t :p p
-              :uv (get-sphere-uv cpn)
+              :uv [0 0]
               :normal cpn
               :material material}))))))
   (bbox [this t-start t-end]
