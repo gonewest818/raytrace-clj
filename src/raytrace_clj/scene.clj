@@ -18,6 +18,7 @@
                      ->diffuse-light]]
             [raytrace-clj.hitable
              :refer [->sphere
+                     ->uv-sphere
                      ->moving-sphere
                      ->rect-xy
                      ->rect-yz
@@ -109,7 +110,7 @@
         bndry  (->sphere (vec3 360 150 145) 70 glass)
         earth  (->lambertian (->flip-texture-coord-v
                               (make-image-texture "earth.png")))
-        marble (->lambertian (->noise-texture 0.1))
+        marble (->lambertian (->marble-texture 0.1 4))
         nb 20
         ns 1000]
     (list
@@ -138,7 +139,7 @@
                            0.0001
                            (->constant-texture (vec3 1 1 1)))
      ;; earth
-     (->sphere (vec3 400 200 400) 100 earth)
+     (->uv-sphere (vec3 400 200 400) 100 earth)
      ;; marble
      (->sphere (vec3 220 280 300) 80 marble)
      ;; spheres packed in a box
