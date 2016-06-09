@@ -16,6 +16,32 @@
 
 (defn color
   "compute color for ray up to an optional recursion depth"
+  ([r world]
+   (color r world 50))
+  ([r world depth]
+   (color r world depth (vec3 1 1 1) (vec3 0 0 0)))
+  ([r world depth atten accum]
+   (metric/increment! metric/count-rays) ; collect total rays
+   (if-let [hrec (hit? world r 0.001 Float/MAX_VALUE)]
+     ;; hit, return scattered ray unless recursion depth too deep
+     (if-let [scat (and (pos? depth)
+                        (scatter (:material hrec) r hrec))]
+
+       (recur (:scattered scat) world (dec depth)
+              (mat/mul atten (:attenuation scat))
+              (mat/add accum
+                       (mat/mul atten
+                                (emitted (:material hrec) (:uv hrec) (:p hrec)))))
+
+       ;; if depth too deep return only emitted (if any)
+       (mat/add accum
+                (mat/mul atten
+                         (emitted (:material hrec) (:uv hrec) (:p hrec)))))
+     ;; else miss, return black
+     accum)))
+
+(defn color-recur
+  "compute color for ray up to an optional recursion depth"
   ([r world] (color r world 50))
   ([r world depth]
    (metric/increment! metric/count-rays) ; collect total rays
