@@ -403,3 +403,36 @@
 (defn make-constant-medium
   [boundary density albedo]
   (->constant-medium boundary density (->isotropic albedo)))
+
+;;;
+;;; triangle
+
+(defrecord triangle [v0 v1 v2 material]
+  hitable
+  (hit? [this r t-min t-max]
+    ;; Moeller-Trumbore triangle intersection
+    (let [v0v1 (mat/sub v1 v0)
+          v0v2 (mat/sub v2 v0)
+          pvec (mat/cross (:direction r) v0v2)
+          det (mat/dot v0v1 pvec)]
+      (if (> det 0.00000001)            ; epsilon
+        (let [inv-det (/ 1.0 det)
+              tvec (mat/sub (:origin r) v0)
+              u (* (mat/dot tvec pvec) inv-det)]
+          (if (and (pos? u) (<= u 1))
+            (let [qvec (mat/cross tvec v0v1)
+                  v (* (mat/dot (:direction r) qvec) inv-det)]
+              (if (and (pos? v) (<= (+ u v) 1))
+                (let [t (* (mat/dot v0v2 qvec) inv-det)]
+                  (if (and (>= t t-min) (<= t t-max))
+                    {:t t
+                     :p (point-at-parameter r t)
+                     :uv [u v]
+                     :normal (mat/cross v0v1 v0v2)
+                     :material material})))))))))
+  (bbox [this t-start t-end]
+    (let [vmax (mat/emap max v0 v1 v2)
+          vmin (mat/emap min v0 v1 v2)
+          vmax (mat/add vmax (vec3 0.0001 0.0001 0.0001))
+          vmin (mat/sub vmin (vec3 0.0001 0.0001 0.0001))]
+      (->aabb vmin vmax))))

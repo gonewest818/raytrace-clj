@@ -70,19 +70,21 @@
         ;lookat (vec3 278 278 0)
         ;lookfrom (vec3 13 2 3)
         ;lookat (vec3 0 1 0)
-        lookfrom (vec3 478 278 -600)
-        lookat (vec3 278 278 0)
+        lookfrom (vec3 1 1 -10)
+        lookat (vec3 1 1 0)
+        ;lookfrom (vec3 478 278 -600)
+        ;lookat (vec3 278 278 0)
         camera (make-thin-lens-camera lookfrom
                                       lookat
                                       (vec3 0 1 0)
-                                      40
+                                      20
                                       (/ (float nx) (float ny))
                                       0.0
                                       10.0
                                       0.0
                                       1.0)
-        world (make-bvh (make-final) 0.0 1.0)
-        ;world (make-bvh (make-two-spheres) 0.0 1.0)
+        ;world (make-bvh (make-final) 0.0 1.0)
+        world (make-bvh (make-two-triangles) 0.0 1.0)
         ;world (make-bvh (make-two-perlin-spheres) 0.0 1.0)
         ;world (make-bvh (make-subsurface-sphere) 0.0 1.0)
         ;world (make-bvh (make-cornell-box) 0.0 1.0)

@@ -27,7 +27,8 @@
                      ->translate
                      make-rotate-y
                      make-constant-medium
-                     make-bvh]]))
+                     make-bvh
+                     ->triangle]]))
 
 
 (defn make-two-spheres
@@ -39,6 +40,27 @@
                  10)]
     (list (->sphere (vec3 0 -10 0) 10 (->lambertian checker))
           (->sphere (vec3 0  10 0) 10 (->lambertian checker)))))
+
+(defn make-two-triangles
+  "two triangles, view down the -z axis"
+  []
+  (let [white (->constant-texture (vec3 0.9 0.9 0.9))
+        red (->constant-texture (vec3 0.9 0 0))]
+    (list
+     (->sphere (vec3 0     0 0) 1000
+               (->diffuse-light
+                (->constant-texture
+                 (mat/mul 0.5 (vec3 0.3 0.5 0.8)))))
+     (->triangle
+      (vec3 0 0 0)
+      (vec3 0 1 0)
+      (vec3 1 0 0)
+      (->lambertian red))
+     (->triangle
+      (vec3 1 1 0)
+      (vec3 1 2 0)
+      (vec3 2 1 0)
+      (->lambertian white)))))
 
 (defn make-two-perlin-spheres
   "two touching spheres"
