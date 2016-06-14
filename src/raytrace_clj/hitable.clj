@@ -42,37 +42,37 @@
           tmax (min (mat/minimum t1) t-max)]
       (> tmax tmin)))) ; true or false
 
-(defrecord aabb-unrolled [vmin vmax]
-  hitable
-  (hit? [this r t-min t-max]
-    (metric/increment! metric/count-aabb)
-    (let [org (:origin r)
-          dir (:direction r)]
-      (loop [tmin t-min
-             tmax t-max
-             index 0]
-        (let [o (mat/mget org index)
-              d (mat/mget dir index)
-              v1 (mat/mget vmin index)
-              v2 (mat/mget vmax index)
-              m (/ (- v1 o) d)
-              n (/ (- v2 o) d)
-              t0 (min m n)
-              t1 (max m n)]
-          (if (< index 2)
-            (recur (max t0 tmin)
-                   (min t1 tmax)
-                   (inc index))
-            (> (min t1 tmax) (max t0 tmin))))))))
+;; (defrecord aabb-unrolled [vmin vmax]
+;;   hitable
+;;   (hit? [this r t-min t-max]
+;;     (metric/increment! metric/count-aabb)
+;;     (let [org (:origin r)
+;;           dir (:direction r)]
+;;       (loop [tmin t-min
+;;              tmax t-max
+;;              index 0]
+;;         (let [o (mat/mget org index)
+;;               d (mat/mget dir index)
+;;               v1 (mat/mget vmin index)
+;;               v2 (mat/mget vmax index)
+;;               m (/ (- v1 o) d)
+;;               n (/ (- v2 o) d)
+;;               t0 (min m n)
+;;               t1 (max m n)]
+;;           (if (< index 2)
+;;             (recur (max t0 tmin)
+;;                    (min t1 tmax)
+;;                    (inc index))
+;;             (> (min t1 tmax) (max t0 tmin))))))))
 
-; test
-(comment (let [r (ray (vec3 -10 -10 -10)
-                      (vec3 1 1 1)
-                      0)
-               b (->aabb (vec3 1 1 1)
-                         (vec3 2 2 2))]
-           (time (dotimes [n 1000000]
-                   (hit? b r 0 Float/MAX_VALUE)))) )
+;; ; test
+;; (comment (let [r (ray (vec3 -10 -10 -10)
+;;                       (vec3 1 1 1)
+;;                       0)
+;;                b (->aabb (vec3 1 1 1)
+;;                          (vec3 2 2 2))]
+;;            (time (dotimes [n 1000000]
+;;                    (hit? b r 0 Float/MAX_VALUE)))) )
 
 (defn make-surrounding-bbox
   "compute aabb that surrounds the two given aabb's"
@@ -321,11 +321,11 @@
     (->aabb (vec3 (- k 0.0001) y0 z0)
             (vec3 (+ k 0.0001) y1 z1))))
 
-(comment (let [b (->rect-yz 0 0 2 2 1 nil)
-               r (ray (vec3 -10 1 1) (vec3 1 0 0) 0)]
-           (time
-            (dotimes [n 1000000]
-              (hit? b r 0 Float/MAX_VALUE)))) )
+;; (comment (let [b (->rect-yz 0 0 2 2 1 nil)
+;;                r (ray (vec3 -10 1 1) (vec3 1 0 0) 0)]
+;;            (time
+;;             (dotimes [n 1000000]
+;;               (hit? b r 0 Float/MAX_VALUE)))) )
 
 
 ;;;

@@ -1,12 +1,7 @@
 (ns raytrace-clj.util
   (:require [clojure.core.matrix :as mat]))
 
-(defn vec3-old
-  "convenience function to make 3d vectors"
-  [u v w]
-  (mat/matrix [u v w]))
-
-;;; macro seems dramatically faster
+;;; vec3 as a macro seems dramatically faster
 (defmacro vec3 [a b c]
   (let [tmp (gensym 'vec3)]
     `(let [~tmp (mat/new-vector 3)]
