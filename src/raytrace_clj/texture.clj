@@ -30,8 +30,8 @@
   texture
   (sample [this uv p]
     (mat/mul (vec3 1 1 1)
-             (* 0.5 (inc (Math/sin (+ (* scale (mat/mget p 2))
-                                      (* 10.0 (turbulence p depth)))))))))
+             (* 0.5 (inc (turbulence (mat/mul scale p) depth))))))
+
 (defrecord marble-texture [scale depth]
   texture
   (sample [this uv p]
