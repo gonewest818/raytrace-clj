@@ -6,32 +6,45 @@
             [raytrace-clj.camera :refer :all]
             [raytrace-clj.scene :refer :all]
             [raytrace-clj.display :refer [show-progress]]
+            [raytrace-clj.metrics :as metric]
             [mikera.image.core :refer [new-image set-pixel save]]
-            [mikera.image.colours :refer [rgb-from-components]])
+            [mikera.image.colours :refer [rgb-from-components]]
+            [com.climate.claypoole :as cp])
   (:gen-class))
 
 (mat/set-current-implementation :vectorz)
 
 (defn color
   "compute color for ray up to an optional recursion depth"
-  ([r world] (color r world 50))
+  ([r world]
+   (color r world 50))
   ([r world depth]
+   (color r world depth (vec3 1 1 1) (vec3 0 0 0)))
+  ([r world depth atten accum]
+   (metric/increment! metric/count-rays) ; collect total rays
    (if-let [hrec (hit? world r 0.001 Float/MAX_VALUE)]
      ;; hit, return scattered ray unless recursion depth too deep
      (if-let [scat (and (pos? depth)
                         (scatter (:material hrec) r hrec))]
-       (mat/add (emitted (:material hrec) (:uv hrec) (:p hrec))
-                (mat/mul (:attenuation scat)
-                         (color (:scattered scat) world (dec depth))))
+
+       (recur (:scattered scat) world (dec depth)
+              (mat/mul atten (:attenuation scat))
+              (mat/add accum
+                       (mat/mul atten
+                                (emitted (:material hrec) (:uv hrec) (:p hrec)))))
+
        ;; if depth too deep return only emitted (if any)
-       (emitted (:material hrec) (:uv hrec) (:p hrec)))
+       (mat/add accum
+                (mat/mul atten
+                         (emitted (:material hrec) (:uv hrec) (:p hrec)))))
      ;; else miss, return black
-     (vec3 0 0 0))))
+     accum)))
 
 (defn pixel
   "compute color for a pixel up to an optional recursion depth"
   ([i j nx ny nr camera world] (pixel i j nx ny nr camera world 50))
   ([i j nx ny nr camera world depth]
+   (metric/increment! metric/count-pixels)
    (->>
     (repeatedly nr #(vector (/ (+ (float i) (rand)) nx)
                             (/ (+ (float j) (rand)) ny)))
@@ -91,12 +104,15 @@
         ;world (make-bvh (make-random-scene 11 true) 0.0 1.0)
         ]
 
+    ;; begin logging
+    (metric/start)
+
     ;; pre-open display window before spawning threads
     (show-progress image 0 filename tstart window?)
 
     ;; render in parallel w/ chunks determined by tiled-coords
     (dorun
-     (pmap
+     (cp/upmap (cp/ncpus)
       (fn [{:keys [pct chunk]}]
         (doseq [[i j] chunk]
           (let [[ir ig ib] (pixel i j nx ny nr camera world)]
@@ -105,5 +121,8 @@
         (show-progress image pct filename tstart window?))
       (tiled-coords nx ny 32)))
 
+    ;; stop logging and cleanup
+    (metric/stop)
     (save image filename)
-    (println "wrote" filename)))
+    (println "wrote" filename)
+    (shutdown-agents)))
