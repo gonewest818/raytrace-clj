@@ -5,52 +5,108 @@
             [raytrace-clj.perlin :refer [noise turbulence]]
             [raytrace-clj.util :refer :all]))
 
-(defprotocol texture
+(defprotocol Texture
   (sample [this uv p]))
 
-(defrecord constant-texture [color]
-  texture
+;;;
+;;; Constant color
+
+(defrecord Constant [color]
+  Texture
   (sample [this uv p] color))
 
-(defrecord checkerboard-texture [tex0 tex1 scale]
-  texture
+(defn constant
+  "constant color as a texture"
+  [& {:keys [color]}]
+  (->Constant color))
+
+;;;
+;;; Checkerboard as a solid texture
+
+(defrecord Checkerboard [tex0 tex1 scale]
+  Texture
   (sample [this uv p]
     (let [sines (mat/ereduce * (mat/emap #(Math/sin %) (mat/mul scale p)))]
       (if (neg? sines)
         (sample tex0 uv p)
         (sample tex1 uv p)))))
 
-(defrecord noise-texture [scale]
-  texture
+(defn checkerboard
+  "checkerboard solid texture"
+  [& {:keys [tex0 tex1 scale]}]
+  (->Checkerboard tex0 tex1 scale))
+
+;;;
+;;; Perlin noise
+
+(defrecord PerlinNoise [scale]
+  Texture
   (sample [this uv p]
     (mat/mul (vec3 1 1 1)
              (* 0.5 (inc (noise (mat/mul scale p)))))))
 
-(defrecord turbulence-texture [scale depth]
-  texture
+(defn perlin-noise
+  "Perlin noise"
+  [& {:keys [scale]}]
+  (->PerlinNoise scale))
+
+;;;
+;;; Perlin turbulence
+
+(defrecord PerlinTurbulence [scale depth]
+  Texture
   (sample [this uv p]
     (mat/mul (vec3 1 1 1)
              (* 0.5 (inc (turbulence (mat/mul scale p) depth))))))
 
-(defrecord marble-texture [scale depth]
-  texture
+(defn perlin-turbulence
+  "Perlin turbulence function"
+  [& {:keys [scale depth]}]
+  (->PerlinTurbulence scale depth))
+
+;;;
+;;; Marble
+
+(defrecord Marble [scale depth]
+  Texture
   (sample [this uv p]
     (mat/mul (vec3 1 1 1)
              (* 0.5 (inc (Math/sin (+ (* scale (mat/mget p 2))
                                       (* 10.0 (turbulence p depth)))))))))
 
-(defrecord flip-texture-coord-u [tex]
-  texture
+(defn marble
+  "Perlin turbulence shaped as a marble texture"
+  [& {:keys [scale depth]}]
+  (->Marble scale depth))
+
+;;;
+;;; Flip texture coordinates in U and V
+
+(defrecord FlipTextureU [tex]
+  Texture
   (sample [this [u v] p]
     (sample tex [(- 1.0 u) v] p)))
 
-(defrecord flip-texture-coord-v [tex]
-  texture
+(defn flip-texture-u
+  "flip texture coordinate in u"
+  [& {:keys [tex]}]
+  (->FlipTextureU tex))
+
+(defrecord FlipTextureV [tex]
+  Texture
   (sample [this [u v] p]
     (sample tex [u (- 1.0 v)] p)))
 
-(defrecord image-texture [image]
-  texture
+(defn flip-texture-v
+  "flip texture coordinate in v"
+  [& {:keys [tex]}]
+  (->FlipTextureV tex))
+
+;;;
+;;; Image texture map
+
+(defrecord ImageMap [image]
+  Texture
   (sample [this [u v] p]
     (let [i (int (* u (width image)))
           j (int (* v (height image)))
@@ -58,7 +114,7 @@
           color (map #(/ % 255.0) rgb)]
       color)))
 
-(defn make-image-texture
-  "construct an image texture from a file"
-  [file]
-  (->image-texture (load-image file)))
+(defn image-map
+  "construct an image texture from a filename"
+  [& {:keys [filename]}]
+  (->ImageMap (load-image filename)))

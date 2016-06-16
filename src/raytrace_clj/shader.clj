@@ -19,12 +19,15 @@
                         (mat/sub uv (mat/mul n dt)))
                (mat/mul n (Math/sqrt discriminant))))))
 
-(defprotocol shader
+(defprotocol Shader
   (scatter [this ray-in hrec])
   (emitted [this uv p]))
 
-(defrecord lambertian [albedo]
-  shader
+;;;
+;;; Lambertian shader
+
+(defrecord Lambertian [albedo]
+  Shader
   (scatter [this ray-in {:keys [t p uv normal material]}]
     (let [target (mat/add p normal (rand-in-unit-sphere))]
       {:scattered (ray p (mat/sub target p) (:time ray-in))
@@ -32,8 +35,16 @@
   (emitted [this uv p]
     (vec3 0 0 0)))
 
-(defrecord metal [albedo fuzz]
-  shader
+(defn lambertian
+  "make a lambertian shader"
+  [& {:keys [albedo]}]
+  (->Lambertian albedo))
+
+;;;
+;;; Metal shader
+
+(defrecord Metal [albedo fuzz]
+  Shader
   (scatter [this ray-in {:keys [t p uv normal material]}]
     (let [reflected (reflect (mat/normalise (:direction ray-in)) normal)
           scattered (ray p
@@ -47,6 +58,14 @@
   (emitted [this uv p]
     (vec3 0 0 0)))
 
+(defn metal
+  "make a metal shader"
+  [& {:keys [albedo fuzz]}]
+  (->Metal albedo fuzz))
+
+;;;
+;;; Dielectric / glass shader
+
 (defn schlick
   "polynomial approximation of glass reflectivity"
   [cosine ri]
@@ -54,8 +73,8 @@
         r0 (* r0 r0)]
     (+ r0 (* (- 1.0 r0) (Math/pow (- 1.0 cosine) 5)))))
 
-(defrecord dielectric [ri]
-  shader
+(defrecord Dielectric [ri]
+  Shader
   (scatter [this ray-in {:keys [t p normal material]}]
     (let [ray-direction (:direction ray-in)
           ray-dot-n     (mat/dot ray-direction normal)
@@ -84,15 +103,31 @@
   (emitted [this uv p]
     (vec3 0 0 0)))
 
-(defrecord diffuse-light [tex]
-  shader
+(defn dielectric
+  "make a dielectric shader"
+  [& {:keys [ri]}]
+  (->Dielectric ri))
+
+;;;
+;;; Diffuse light
+
+(defrecord DiffuseLight [tex]
+  Shader
   (scatter [this ray-in hrec]
     nil)
   (emitted [this uv p]
     (sample tex uv p)))
 
-(defrecord isotropic [albedo]
-  shader
+(defn diffuse-light
+  "make a diffuse light"
+  [& {:keys [tex]}]
+  (->DiffuseLight tex))
+
+;;;
+;;; Isotropic reflector (for participating media)
+
+(defrecord Isotropic [albedo]
+  Shader
   (scatter [this ray-in hrec]
     (let [p (:p hrec)
           uv (:uv hrec)
@@ -101,3 +136,8 @@
        :attenuation (sample albedo uv p)}))
   (emitted [this uv p]
     (vec3 0 0 0)))
+
+(defn isotropic
+  "make an isotropic material"
+  [& {:keys [albedo]}]
+  (->Isotropic albedo))

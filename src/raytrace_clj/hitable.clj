@@ -1,10 +1,10 @@
 (ns raytrace-clj.hitable
   (:require [clojure.core.matrix :as mat]
-            [raytrace-clj.shader :refer [->isotropic]]
+            [raytrace-clj.shader :refer [isotropic]]
             [raytrace-clj.metrics :as metric]
             [raytrace-clj.util :refer :all]))
 
-(defprotocol hitable
+(defprotocol Hitable
   (hit? [this r t-min t-max]
     "does ray intersect inside the interval [t-min, t-max]?")
   (bbox [this t0 t1]))
@@ -12,8 +12,8 @@
 ;;;
 ;;; brute force search over all objects in scene
 
-(defrecord hitlist [hitable-list]
-  hitable
+(defrecord Hitlist [items]
+  Hitable
   (hit? [this r t-min t-max]
     (let [closest (reduce
                    (fn [v obj]
@@ -21,15 +21,20 @@
                        hrec
                        v))
                    {:missed true :t t-max}
-                   hitable-list)]
+                   items)]
       (if (not (:missed closest))
         closest))))
 
-;;;
-;;; bounding box
+(defn hitlist
+  "brute force search over items"
+  [& {:keys [items]}]
+  (->Hitlist items))
 
-(defrecord aabb [vmin vmax]
-  hitable
+;;;
+;;; axis-aligned bounding box
+
+(defrecord AABB [vmin vmax]
+  Hitable
   (hit? [this r t-min t-max]
     (metric/increment! metric/count-aabb)
     (let [org (:origin r)
@@ -41,6 +46,11 @@
           tmin (max (mat/maximum t0) t-min)
           tmax (min (mat/minimum t1) t-max)]
       (> tmax tmin)))) ; true or false
+
+(defn aabb
+  "make axis-aligned bounding box"
+  [& {:keys [vmin vmax]}]
+  (->AABB vmin vmax))
 
 ;; (defrecord aabb-unrolled [vmin vmax]
 ;;   hitable
@@ -79,13 +89,13 @@
   [box0 box1]
   (let [small (mat/emap min (:vmin box0) (:vmin box1))
         big   (mat/emap max (:vmax box0) (:vmax box1))]
-    (->aabb small big)))
+    (->AABB small big)))
 
 ;;;
 ;;; bounding volume hierarchy
 
 (defrecord bvh-node [left right box]
-  hitable
+  Hitable
   (hit? [this r t-min t-max]
     (if (hit? box r t-min t-max)
       (let [hl (hit? left r t-min t-max)
@@ -128,8 +138,8 @@
         v     (/ (+ theta (/ Math/PI 2.0)) Math/PI)]
     [u v]))
 
-(defrecord uv-sphere [center radius material]
-  hitable
+(defrecord UVSphere [center radius material]
+  Hitable
   (hit? [this r t-min t-max]
     (let [org (:origin r)
           dir (:direction r)
@@ -158,11 +168,17 @@
               :material material}))))))
   (bbox [this t0 t1]
     (let [vec3r (vec3 radius radius radius)]
-      (->aabb (mat/sub center vec3r)
+      (->AABB (mat/sub center vec3r)
               (mat/add center vec3r)))))
 
-(defrecord sphere [center radius material]
-  hitable
+(defn uv-sphere
+  "make sphere with uv texture coords"
+  [& {:keys [center radius material]}]
+  (->UVSphere center radius material))
+
+
+(defrecord Sphere [center radius material]
+  Hitable
   (hit? [this r t-min t-max]
     (let [org (:origin r)
           dir (:direction r)
@@ -191,17 +207,22 @@
               :material material}))))))
   (bbox [this t0 t1]
     (let [vec3r (vec3 radius radius radius)]
-      (->aabb (mat/sub center vec3r)
+      (->AABB (mat/sub center vec3r)
               (mat/add center vec3r)))))
+
+(defn sphere
+  "make sphere with no uv texture coords"
+  [& {:keys [center radius material]}]
+  (->Sphere center radius material))
+
 
 (defn center-at-time
   [center0 t0 center1 t1 t]
   (mat/lerp center0 center1
             (/ (- t t0) (- t1 t0))))
 
-
-(defrecord moving-sphere [center0 t0 center1 t1 radius material]
-  hitable
+(defrecord MovingSphere [center0 t0 center1 t1 radius material]
+  Hitable
   (hit? [this r t-min t-max]
     (let [center-t (center-at-time center0 t0 center1 t1 (:time r))
           org (:origin r)
@@ -234,14 +255,19 @@
           c-end   (center-at-time center0 t0 center1 t1 t-end)
           vec3r   (vec3 radius radius radius)]
       (make-surrounding-bbox
-       (->aabb (mat/sub c-start vec3r) (mat/add c-start vec3r))
-       (->aabb (mat/sub c-end vec3r) (mat/add c-end vec3r))))))
+       (->AABB (mat/sub c-start vec3r) (mat/add c-start vec3r))
+       (->AABB (mat/sub c-end vec3r) (mat/add c-end vec3r))))))
+
+(defn moving-sphere
+  "make sphere with moving position"
+  [& {:keys [center0 t0 center1 t1 radius material]}]
+  (->MovingSphere center0 t0 center1 t1 radius material))
 
 ;;;
 ;;; rectangles
 
-(defrecord rect-xy [x0 y0 x1 y1 k material]
-  hitable
+(defrecord RectXY [x0 y0 x1 y1 k material]
+  Hitable
   (hit? [this r t-min t-max]
     (let [ror (:origin r)
           rdi (:direction r)
@@ -264,11 +290,16 @@
              :normal (vec3 0 0 1)
              :material material})))))
   (bbox [this t-start t-end]
-    (->aabb (vec3 x0 y0 (- k 0.0001))
+    (->AABB (vec3 x0 y0 (- k 0.0001))
             (vec3 x1 y1 (+ k 0.0001)))))
 
-(defrecord rect-xz [x0 z0 x1 z1 k material]
-  hitable
+(defn rect-xy
+  "make rectangle on xy plane"
+  [& {:keys [x0 y0 x1 y1 k material]}]
+  (->RectXY x0 y0 x1 y1 k material))
+
+(defrecord RectXZ [x0 z0 x1 z1 k material]
+  Hitable
   (hit? [this r t-min t-max]
     (let [ror (:origin r)
           rdi (:direction r)
@@ -291,11 +322,16 @@
              :normal (vec3 0 1 0)
              :material material})))))
   (bbox [this t-start t-end]
-    (->aabb (vec3 x0 (- k 0.0001) z0)
+    (->AABB (vec3 x0 (- k 0.0001) z0)
             (vec3 x1 (+ k 0.0001) z1))))
 
-(defrecord rect-yz [y0 z0 y1 z1 k material]
-  hitable
+(defn rect-xz
+  "make rectangle on xz plane"
+  [& {:keys [x0 z0 x1 z1 k material]}]
+  (->RectXZ x0 z0 x1 z1 k material))
+
+(defrecord RectYZ [y0 z0 y1 z1 k material]
+  Hitable
   (hit? [this r t-min t-max]
     (let [ror (:origin r)
           rdi (:direction r)
@@ -318,8 +354,13 @@
              :normal (vec3 1 0 0)
              :material material})))))
   (bbox [this t-start t-end]
-    (->aabb (vec3 (- k 0.0001) y0 z0)
+    (->AABB (vec3 (- k 0.0001) y0 z0)
             (vec3 (+ k 0.0001) y1 z1))))
+
+(defn rect-yz
+  "make rectangle on yz plane"
+  [& {:keys [y0 z0 y1 z1 k material]}]
+  (->RectYZ y0 z0 y1 z1 k material))
 
 ;; (comment (let [b (->rect-yz 0 0 2 2 1 nil)
 ;;                r (ray (vec3 -10 1 1) (vec3 1 0 0) 0)]
@@ -331,33 +372,43 @@
 ;;;
 ;;; flip normals, as a wrapper
 
-(defrecord flip-normals [obj]
-  hitable
+(defrecord FlipNormals [item]
+  Hitable
   (hit? [this r t-min t-max]
-    (if-let [hrec (hit? obj r t-min t-max)]
+    (if-let [hrec (hit? item r t-min t-max)]
       (update-in hrec [:normal] mat/negate)))
   (bbox [this t-start t-end]
-    (bbox obj t-start t-end)))
+    (bbox item t-start t-end)))
+
+(defn flip-normals
+  "flip normals of underlying hitable"
+  [& {:keys [item]}]
+  (->FlipNormals item))
 
 ;;;
 ;;; translate instance, as a wrapper
 
-(defrecord translate [obj offset]
-  hitable
+(defrecord Translate [item offset]
+  Hitable
   (hit? [this r t-min t-max]
     (let [trans-r (update-in r [:origin] #(mat/sub % offset))]
-      (if-let [hrec (hit? obj trans-r t-min t-max)]
+      (if-let [hrec (hit? item trans-r t-min t-max)]
         (update-in hrec [:p] #(mat/add % offset)))))
   (bbox [this t-start t-end]
-    (if-let [my-box (bbox obj t-start t-end)]
-      (->aabb (mat/add (:vmin my-box) offset)
+    (if-let [my-box (bbox item t-start t-end)]
+      (->AABB (mat/add (:vmin my-box) offset)
               (mat/add (:vmax my-box) offset)))))
+
+(defn translate
+  "translate the position of the underlying hitable"
+  [& {:keys [item offset]}]
+  (->Translate item offset))
 
 ;;;
 ;;; rotate instance, as a wrapper
 
-(defrecord rotate-y [obj rotated-bbox sin-theta cos-theta]
-  hitable
+(defrecord RotateY [obj rotated-bbox sin-theta cos-theta]
+  Hitable
   (hit? [this r t-min t-max]
     (let [ror (:origin r)
           rdi (:direction r)
@@ -424,41 +475,46 @@
                       :let [new-x (+    (* cos-th x)  (* sin-th z))
                             new-z (+ (- (* sin-th x)) (* cos-th z))]]
                   (vec3 new-x y new-z)))]
-    (->rotate-y obj
-                (->aabb new-min new-max)
+    (->RotateY obj
+                (->AABB new-min new-max)
                 sin-th
                 cos-th)))
+
+(defn rotate-y
+  "rotate underlying hitable on y axis"
+  [& {:keys [item theta]}]
+  (make-rotate-y item theta))
 
 ;;;
 ;;; axis-aligned box
 
-(defrecord box [p0 p1 sides]
-  hitable
+(defrecord Box [p0 p1 sides]
+  Hitable
   (hit? [this r t-min t-max]
     (hit? sides r t-min t-max))
   (bbox [this t-start t-end]
-    (->aabb p0 p1)))
+    (->AABB p0 p1)))
 
-(defn make-box
+(defn box
   "factory to make a box record"
   [p0 p1 material]
   (let [[x0 y0 z0] (seq p0)
         [x1 y1 z1] (seq p1)]
-    (->box p0 p1
-           (->hitlist
+    (->Box p0 p1
+           (->Hitlist
             (list
-             (->rect-xy x0 y0 x1 y1 z1 material)
-             (->flip-normals (->rect-xy x0 y0 x1 y1 z0 material))
-             (->rect-xz x0 z0 x1 z1 y1 material)
-             (->flip-normals (->rect-xz x0 z0 x1 z1 y0 material))
-             (->rect-yz y0 z0 y1 z1 x1 material)
-             (->flip-normals (->rect-yz y0 z0 y1 z1 x0 material)))))))
+             (->RectXY x0 y0 x1 y1 z1 material)
+             (->FlipNormals (->RectXY x0 y0 x1 y1 z0 material))
+             (->RectXZ x0 z0 x1 z1 y1 material)
+             (->FlipNormals (->RectXZ x0 z0 x1 z1 y0 material))
+             (->RectYZ y0 z0 y1 z1 x1 material)
+             (->FlipNormals (->RectYZ y0 z0 y1 z1 x0 material)))))))
 
 ;;;
 ;;; constant-medium, i.e. fog or other participating media
 
-(defrecord constant-medium [boundary density phase-fn]
-  hitable
+(defrecord ConstantMedium [boundary density phase-fn]
+  Hitable
   (hit? [this r t-min t-max]
     (if-let [hrec1 (hit? boundary r (- Float/MAX_VALUE) Float/MAX_VALUE)]
       (if-let [hrec2 (hit? boundary r (+ (:t hrec1) 0.0001) Float/MAX_VALUE)]
@@ -481,15 +537,16 @@
   (bbox [this t-start t-end]
     (bbox boundary t-start t-end)))
 
-(defn make-constant-medium
-  [boundary density albedo]
-  (->constant-medium boundary density (->isotropic albedo)))
+(defn constant-medium
+  "make constant-density participating medium"
+  [& {:keys [boundary density albedo]}]
+  (->ConstantMedium boundary density (isotropic :albedo albedo)))
 
 ;;;
 ;;; triangle
 
-(defrecord triangle [v0 v1 v2 material]
-  hitable
+(defrecord Triangle [v0 v1 v2 material]
+  Hitable
   (hit? [this r t-min t-max]
     ;; Moeller-Trumbore triangle intersection
     (let [v0v1 (mat/sub v1 v0)
@@ -516,4 +573,9 @@
           vmin (mat/emap min v0 v1 v2)
           vmax (mat/add vmax (vec3 0.0001 0.0001 0.0001))
           vmin (mat/sub vmin (vec3 0.0001 0.0001 0.0001))]
-      (->aabb vmin vmax))))
+      (->AABB vmin vmax))))
+
+(defn triangle
+  "make triangle"
+  [& {:keys [v0 v1 v2 material]}]
+  (->Triangle v0 v1 v2 material))
