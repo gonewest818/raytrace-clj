@@ -497,7 +497,7 @@
 
 (defn box
   "factory to make a box record"
-  [p0 p1 material]
+  [& {:keys [p0 p1 material]}]
   (let [[x0 y0 z0] (seq p0)
         [x1 y1 z1] (seq p1)]
     (->Box p0 p1
