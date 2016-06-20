@@ -21,6 +21,24 @@
   (->Constant color))
 
 ;;;
+;;; UV Gradient
+
+(defrecord UVGradient [co cu cv cuv]
+  Texture
+  (sample [this [u v] p]
+    (let [a (mat/add (mat/mul cu (- 1 u))
+                     (mat/mul co u))
+          b (mat/add (mat/mul cuv (- 1 u))
+                     (mat/mul cv u))]
+      (mat/add (mat/mul b (- 1 v))
+               (mat/mul a v)))))
+
+(defn uv-gradient
+  "gradient ramp along u and v directions"
+  [& {:keys [co cu cv cuv]}]
+  (->UVGradient co cu cv cuv))
+
+;;;
 ;;; Checkerboard as a solid texture
 
 (defrecord Checkerboard [tex0 tex1 scale]
