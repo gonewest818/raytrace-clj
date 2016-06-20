@@ -79,29 +79,15 @@
         nr (if is (Integer/parseUnsignedInt is) 100)
         window? (or (= win "true") (= win "win"))
         image (new-image nx ny)
-        ;lookfrom (vec3 278 278 -800)
-        ;lookat (vec3 278 278 0)
-        ;lookfrom (vec3 13 2 3)
-        ;lookat (vec3 0 1 0)
-        lookfrom (vec3 1 1 -10)
-        lookat (vec3 1 1 0)
-        ;lookfrom (vec3 478 278 -600)
-        ;lookat (vec3 278 278 0)
-        camera (make-thin-lens-camera lookfrom
-                                      lookat
-                                      (vec3 0 1 0)
-                                      20
-                                      (/ (float nx) (float ny))
-                                      0.0
-                                      10.0
-                                      0.0
-                                      1.0)
-        ;world (make-bvh (make-final) 0.0 1.0)
-        world (make-bvh (make-two-triangles) 0.0 1.0)
-        ;world (make-bvh (make-two-perlin-spheres) 0.0 1.0)
-        ;world (make-bvh (make-subsurface-sphere) 0.0 1.0)
-        ;world (make-bvh (make-cornell-box) 0.0 1.0)
-        ;world (make-bvh (make-random-scene 11 true) 0.0 1.0)
+        ;{:keys [camera world]} (make-two-spheres nx ny)
+        ;{:keys [camera world]} (make-two-perlin-spheres nx ny)
+        ;{:keys [camera world]} (make-textured-sphere nx ny)
+        ;{:keys [camera world]} (make-subsurface-sphere nx ny)
+        ;{:keys [camera world]} (make-two-triangles nx ny)
+        ;{:keys [camera world]} (make-example-light nx ny)
+        ;{:keys [camera world]} (make-cornell-box nx ny false)
+        ;{:keys [camera world]} (make-random-scene nx ny 11 true)
+        {:keys [camera world]} (make-final nx ny)
         ]
 
     ;; begin logging
@@ -125,4 +111,5 @@
     (metric/stop)
     (save image filename)
     (println "wrote" filename)
-    (shutdown-agents)))
+    ;(shutdown-agents)
+    ))
